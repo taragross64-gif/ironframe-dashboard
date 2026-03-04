@@ -265,6 +265,7 @@ export default function App() {
   const [syncStatus, setSyncStatus] = useState("syncing");
   const [toast, setToast] = useState(null);
   const [lastSaved, setLastSaved] = useState(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const showToast = (msg, type = "success") => {
     setToast({ msg, type });
@@ -366,7 +367,7 @@ export default function App() {
     <>
       <style>{styles}</style>
       <div className="app">
-        <Sidebar view={view} setView={setView} setSelectedId={setSelectedId} syncStatus={syncStatus} />
+        <Sidebar view={view} setView={setView} setSelectedId={setSelectedId} syncStatus={syncStatus} open={sidebarOpen} setOpen={setSidebarOpen} />
         <div className="main">
           {view === "dashboard" && <Dashboard projects={projects} onOpen={id => { setSelectedId(id); setView("detail"); }} onNew={() => { setEditingProject(null); setShowModal(true); }} />}
           {view === "detail" && selectedProject && (
@@ -382,30 +383,40 @@ export default function App() {
 }
 
 // ── SIDEBAR ───────────────────────────────────────────────────────────────────
-function Sidebar({ view, setView, setSelectedId, syncStatus }) {
+function Sidebar({ view, setView, setSelectedId, syncStatus, open, setOpen }) {
   const syncLabel = { synced:"SYNCED", syncing:"SAVING...", error:"SYNC ERROR" };
   const syncColor = { synced:"var(--green)", syncing:"var(--yellow)", error:"var(--red)" };
   return (
-    <div className="sidebar">
-      <div className="sidebar-logo">HOLLYWOOD<span>PROPERTY SOLUTIONS</span></div>
-      <nav className="sidebar-nav">
-        {[{id:"dashboard",icon:"⬛",label:"All Projects"},{id:"calendar",icon:"📅",label:"Calendar"}].map(n => (
-          <div key={n.id} className={`nav-item ${view === n.id || (view==="detail" && n.id==="dashboard") ? "active" : ""}`}
-            onClick={() => { setView(n.id); if (n.id==="dashboard") setSelectedId(null); }}>
-            <span style={{fontSize:15}}>{n.icon}</span>{n.label}
-          </div>
-        ))}
-      </nav>
-      <div className="sync-status" style={{color: syncColor[syncStatus]}}>
-        <div className={`sync-dot ${syncStatus}`} />
-        {syncLabel[syncStatus]}
+    <>
+      {/* Mobile overlay */}
+      {open && <div onClick={() => setOpen(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:40}} />}
+      <div className="sidebar" style={{
+        position: window.innerWidth < 768 ? "fixed" : "relative",
+        left: window.innerWidth < 768 ? (open ? "0" : "-220px") : "0",
+        zIndex: 50, transition: "left 0.25s ease",
+        height: "100vh"
+      }}>
+        <div className="sidebar-logo">HOLLYWOOD<span>PROPERTY SOLUTIONS</span></div>
+        <nav className="sidebar-nav">
+          {[{id:"dashboard",icon:"⬛",label:"All Projects"},{id:"calendar",icon:"📅",label:"Calendar"}].map(n => (
+            <div key={n.id} className={`nav-item ${view===n.id||(view==="detail"&&n.id==="dashboard")?"active":""}`}
+              onClick={() => { setView(n.id); if(n.id==="dashboard") setSelectedId(null); setOpen(false); }}>
+              <span style={{fontSize:15}}>{n.icon}</span>{n.label}
+            </div>
+          ))}
+        </nav>
+        <div className="sync-status" style={{color:syncColor[syncStatus]}}>
+          <div className={`sync-dot ${syncStatus}`} />
+          {syncLabel[syncStatus]}
+        </div>
+        <div style={{padding:"4px 20px 16px",fontSize:10,color:"var(--text-dim)",fontFamily:"'IBM Plex Mono',monospace",lineHeight:1.5}}>
+          Shared across<br />all team members
+        </div>
       </div>
-      <div style={{padding:"4px 20px 16px", fontSize:10, color:"var(--text-dim)", fontFamily:"'IBM Plex Mono',monospace", lineHeight:1.5}}>
-        Shared across<br />all team members
-      </div>
-    </div>
+    </>
   );
 }
+```
 
 // ── DASHBOARD ────────────────────────────────────────────────────────────────
 function Dashboard({ projects, onOpen, onNew }) {
@@ -415,6 +426,7 @@ function Dashboard({ projects, onOpen, onNew }) {
   return (
     <>
       <div className="topbar">
+        <button onClick={() => setSidebarOpen(o => !o)} className="btn btn-ghost btn-sm" style={{display: window.innerWidth < 768 ? "block" : "none", marginRight:12}}>☰</button>
         <div className="topbar-title">PROJECT <span>DASHBOARD</span></div>
         <button className="btn btn-amber" onClick={onNew}>+ New Project</button>
       </div>
@@ -456,6 +468,7 @@ function DetailView({ project, onBack, onUpdate, onEdit, onDelete }) {
   return (
     <>
       <div className="topbar">
+        <button onClick={() => setSidebarOpen(o => !o)} className="btn btn-ghost btn-sm" style={{display: window.innerWidth < 768 ? "block" : "none", marginRight:12}}>☰</button>
         <div className="back-btn" onClick={onBack}>← Back to Projects</div>
         <div style={{display:"flex", gap:8}}>
           <button className="btn btn-ghost btn-sm" onClick={onEdit}>Edit Project</button>
@@ -750,7 +763,9 @@ function CalendarView({ projects, onOpen }) {
   };
   return (
     <>
-      <div className="topbar"><div className="topbar-title">PROJECT <span>CALENDAR</span></div></div>
+      <div className="topbar">
+      <button onClick={() => setSidebarOpen(o => !o)} className="btn btn-ghost btn-sm" style={{display: window.innerWidth < 768 ? "block" : "none", marginRight:12}}>☰</button>
+      <div className="topbar-title">PROJECT <span>CALENDAR</span></div></div>
       <div className="content">
         <div className="cal-nav">
           <button className="btn btn-ghost btn-sm" onClick={prev}>‹</button>
