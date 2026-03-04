@@ -1,4 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
+import { db } from "./firebase";
+import { doc, getDoc, setDoc, onSnapshot } from "firebase/firestore";
 
 const FONTS = `@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');`;
 
@@ -13,38 +15,23 @@ const styles = `
     --text: #e2e8f0; --text-dim: #64748b; --text-mid: #94a3b8;
   }
   .app { display: flex; height: 100vh; overflow: hidden; }
-
-  /* SIDEBAR */
-  .sidebar {
-    width: 220px; min-width: 220px; background: var(--bg2);
-    border-right: 1px solid var(--border);
-    display: flex; flex-direction: column; padding: 24px 0;
-    position: relative; z-index: 50; transition: transform 0.25s ease;
-    height: 100vh;
-  }
-  .sidebar-overlay {
-    display: none; position: fixed; inset: 0;
-    background: rgba(0,0,0,0.6); z-index: 40;
-  }
+  .sidebar { width: 220px; min-width: 220px; background: var(--bg2); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 24px 0; position: relative; z-index: 50; transition: transform 0.25s ease; height: 100vh; }
+  .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 40; }
   @media (max-width: 768px) {
-    .sidebar {
-      position: fixed; top: 0; left: 0; bottom: 0;
-      transform: translateX(-100%);
-    }
+    .sidebar { position: fixed; top: 0; left: 0; bottom: 0; transform: translateX(-100%); }
     .sidebar.open { transform: translateX(0); }
     .sidebar-overlay.open { display: block; }
     .hamburger { display: flex !important; }
     .main { width: 100vw; }
+    .content { padding: 14px; }
+    .stats-bar { grid-template-columns: repeat(2, 1fr) !important; }
+    .projects-grid { grid-template-columns: 1fr !important; }
+    .form-grid { grid-template-columns: 1fr !important; }
+    .form-group.full { grid-column: 1 !important; }
+    .topbar-title { font-size: 18px; }
   }
-  .hamburger {
-    display: none; align-items: center; justify-content: center;
-    background: transparent; border: 1px solid var(--border);
-    color: var(--text-mid); border-radius: 4px;
-    width: 36px; height: 36px; cursor: pointer; font-size: 18px;
-    margin-right: 12px; flex-shrink: 0;
-  }
+  .hamburger { display: none; align-items: center; justify-content: center; background: transparent; border: 1px solid var(--border); color: var(--text-mid); border-radius: 4px; width: 36px; height: 36px; cursor: pointer; font-size: 18px; margin-right: 12px; flex-shrink: 0; }
   .hamburger:hover { border-color: var(--amber); color: var(--amber); }
-
   .sidebar-logo { padding: 0 20px 28px; font-family: 'Bebas Neue', cursive; font-size: 22px; letter-spacing: 2px; color: var(--amber); border-bottom: 1px solid var(--border); line-height: 1.2; }
   .sidebar-logo span { display: block; font-size: 11px; letter-spacing: 3px; color: var(--text-dim); font-family: 'IBM Plex Mono', monospace; margin-top: 4px; }
   .sidebar-nav { padding: 20px 0; flex: 1; }
@@ -57,7 +44,6 @@ const styles = `
   .sync-dot.syncing { background: var(--yellow); animation: pulse 1s infinite; }
   .sync-dot.error { background: var(--red); }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
-
   .main { flex: 1; overflow-y: auto; background: var(--bg); min-width: 0; }
   .topbar { background: var(--bg2); border-bottom: 1px solid var(--border); padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; }
   .topbar-left { display: flex; align-items: center; flex: 1; min-width: 0; }
@@ -70,16 +56,6 @@ const styles = `
   .btn-ghost:hover { border-color: var(--amber); color: var(--amber); }
   .btn-sm { padding: 5px 12px; font-size: 12px; }
   .content { padding: 20px; }
-  @media (max-width: 768px) {
-    .content { padding: 14px; }
-    .stats-bar { grid-template-columns: repeat(2, 1fr) !important; }
-    .projects-grid { grid-template-columns: 1fr !important; }
-    .form-grid { grid-template-columns: 1fr !important; }
-    .form-group.full { grid-column: 1 !important; }
-    .detail-meta { gap: 12px !important; }
-    .topbar-title { font-size: 18px; }
-  }
-
   .projects-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
   .project-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; padding: 20px; cursor: pointer; transition: all 0.2s; position: relative; overflow: hidden; }
   .project-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
@@ -203,91 +179,58 @@ const SEED_PROJECTS = [
       { id: "m1", name: "Project Kickoff", date: "2026-01-15", status: "done", notes: "All stakeholders attended." },
       { id: "m2", name: "Demolition Complete", date: "2026-02-20", status: "done", notes: "Floors 2-4 cleared." },
       { id: "m3", name: "MEP Rough-In", date: "2026-04-10", status: "active", notes: "Electrical 60% complete." },
-      { id: "m4", name: "Drywall & Insulation", date: "2026-05-22", status: "upcoming", notes: "" },
-      { id: "m5", name: "Final Inspection", date: "2026-08-15", status: "upcoming", notes: "" },
+      { id: "m4", name: "Drywall and Insulation", date: "2026-05-22", status: "upcoming", notes: "" },
+      { id: "m5", name: "Final Inspection", date: "2026-08-15", status: "upcoming", notes: "" }
     ],
     pos: [
-      { id: "po1", po: "PO-2026-001", vendor: "Apex Electrical Supply", desc: "Panel boards & conduit", amount: 48200, date: "2026-01-20", status: "Received" },
-      { id: "po2", po: "PO-2026-004", vendor: "Midwest Drywall Co.", desc: "5/8 type-X drywall", amount: 31500, date: "2026-02-05", status: "Approved" },
-      { id: "po3", po: "PO-2026-009", vendor: "ProTech HVAC", desc: "Ductwork & equipment", amount: 124000, date: "2026-02-18", status: "Pending" },
+      { id: "po1", po: "PO-2026-001", vendor: "Apex Electrical Supply", desc: "Panel boards and conduit", amount: 48200, date: "2026-01-20", status: "Received" },
+      { id: "po2", po: "PO-2026-004", vendor: "Midwest Drywall Co.", desc: "5/8 type-X drywall", amount: 31500, date: "2026-02-05", status: "Approved" }
     ],
     notes: [
-      { id: "n1", tag: "client", text: "Client confirmed upgraded lighting package. Will issue change order CO-003.", date: "2026-02-28 14:32" },
-      { id: "n2", tag: "site", text: "Water intrusion at NE stairwell. Roofing sub notified. Repair scheduled March 6.", date: "2026-02-25 09:15" },
+      { id: "n1", tag: "client", text: "Client confirmed upgraded lighting package. Will issue change order CO-003.", date: "2026-02-28 14:32" }
     ],
     checklist: [
       { id: "c1", text: "Execute subcontractor agreements", done: true, due: "2026-01-20", priority: "high" },
-      { id: "c2", text: "Submit building permit application", done: true, due: "2026-01-18", priority: "high" },
-      { id: "c3", text: "Finalize MEP coordination drawings", done: false, due: "2026-03-15", priority: "high" },
-      { id: "c4", text: "Order long-lead HVAC equipment", done: false, due: "2026-03-10", priority: "medium" },
-    ],
+      { id: "c2", text: "Finalize MEP coordination drawings", done: false, due: "2026-03-15", priority: "high" },
+      { id: "c3", text: "Order long-lead HVAC equipment", done: false, due: "2026-03-10", priority: "medium" }
+    ]
   },
   {
     id: "p2", name: "Lakefront Retail Buildout", client: "Shoreline Properties Inc.",
     address: "201 Harbor View Dr, Racine, WI", pm: "Tom Braddock",
     contract: 520000, status: "planning", start: "2026-03-01", end: "2026-06-15", progress: 12,
     milestones: [
-      { id: "m1", name: "Design Review Approval", date: "2026-02-20", status: "done", notes: "City approved with minor revisions." },
+      { id: "m1", name: "Design Review Approval", date: "2026-02-20", status: "done", notes: "City approved." },
       { id: "m2", name: "Permit Issued", date: "2026-03-05", status: "active", notes: "Awaiting final sign-off." },
-      { id: "m3", name: "Structural Steel Install", date: "2026-03-28", status: "upcoming", notes: "" },
-      { id: "m4", name: "Tenant Handover", date: "2026-06-10", status: "upcoming", notes: "" },
-    ],
-    pos: [
-      { id: "po1", po: "PO-2026-011", vendor: "Great Lakes Steel", desc: "Structural steel framing", amount: 18400, date: "2026-02-15", status: "Approved" },
-    ],
-    notes: [
-      { id: "n1", tag: "client", text: "Client wants polished concrete floors instead of VCT tile. Cost delta approx +$9,200.", date: "2026-02-22 11:45" },
-    ],
-    checklist: [
-      { id: "c1", text: "Issue Notice to Proceed to GC", done: false, due: "2026-03-01", priority: "high" },
-      { id: "c2", text: "Confirm glass system order deadline", done: false, due: "2026-03-08", priority: "high" },
-      { id: "c3", text: "Distribute site safety plan", done: true, due: "2026-02-28", priority: "medium" },
-    ],
-  },
-  {
-    id: "p3", name: "Grandview Medical Clinic", client: "Grandview Health Systems",
-    address: "9901 Medical Pkwy, Waukesha, WI", pm: "Sandra Kowalski",
-    contract: 3100000, status: "hold", start: "2026-04-01", end: "2027-02-28", progress: 5,
-    milestones: [
-      { id: "m1", name: "Owner Financing Confirmed", date: "2026-03-15", status: "upcoming", notes: "Pending bank commitment letter." },
-      { id: "m2", name: "Preconstruction Meeting", date: "2026-04-01", status: "upcoming", notes: "" },
+      { id: "m3", name: "Tenant Handover", date: "2026-06-10", status: "upcoming", notes: "" }
     ],
     pos: [],
-    notes: [
-      { id: "n1", tag: "internal", text: "Project on hold pending owner financing. Expected LOI by March 15.", date: "2026-02-20 13:00" },
-    ],
+    notes: [],
     checklist: [
-      { id: "c1", text: "Confirm financing - obtain commitment letter", done: false, due: "2026-03-15", priority: "high" },
-      { id: "c2", text: "Finalize structural drawings with engineer", done: false, due: "2026-03-20", priority: "medium" },
-    ],
-  },
+      { id: "c1", text: "Issue Notice to Proceed to GC", done: false, due: "2026-03-01", priority: "high" }
+    ]
+  }
 ];
 
 const PROJECT_COLORS = ["#f59e0b","#60a5fa","#34d399","#f87171","#a78bfa","#fb923c"];
-const STORAGE_KEY = "hollywood-projects-v1";
-const POLL_INTERVAL = 5000;
+const DB_DOC = "hollywood-projects";
+const COLLECTION = "data";
 
-const fmt = (d) => d ? new Date(d + "T00:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}) : "---";
-const fmtMoney = (n) => n ? "$" + Number(n).toLocaleString() : "---";
+const fmt = function(d) { return d ? new Date(d + "T00:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}) : "---"; };
+const fmtMoney = function(n) { return n ? "$" + Number(n).toLocaleString() : "---"; };
 const statusLabel = { active:"In Progress", planning:"Planning", hold:"On Hold", complete:"Complete" };
 const badgeClass = { active:"badge-active", planning:"badge-planning", hold:"badge-hold", complete:"badge-complete" };
 const statusCardClass = { active:"status-active", planning:"status-planning", hold:"status-hold", complete:"status-complete" };
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const DAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 
-async function loadFromStorage() {
+async function saveProjects(projects) {
   try {
-    const result = await window.storage.get(STORAGE_KEY, true);
-    if (result && result.value) return JSON.parse(result.value);
-  } catch(e) {}
-  return null;
-}
-
-async function saveToStorage(projects) {
-  try {
-    await window.storage.set(STORAGE_KEY, JSON.stringify(projects), true);
+    const ref = doc(db, COLLECTION, DB_DOC);
+    await setDoc(ref, { projects: projects });
     return true;
   } catch(e) {
+    console.error("Save error:", e);
     return false;
   }
 }
@@ -300,83 +243,68 @@ export default function App() {
   const [editingProject, setEditingProject] = useState(null);
   const [syncStatus, setSyncStatus] = useState("syncing");
   const [toast, setToast] = useState(null);
-  const [lastSaved, setLastSaved] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const showToast = (msg, type) => {
-    setToast({ msg, type: type || "success" });
-    setTimeout(() => setToast(null), 3000);
+  const showToast = function(msg, type) {
+    setToast({ msg: msg, type: type || "success" });
+    setTimeout(function() { setToast(null); }, 3000);
   };
 
-  useEffect(() => {
-    (async () => {
-      setSyncStatus("syncing");
-      const data = await loadFromStorage();
-      if (data && Array.isArray(data) && data.length > 0) {
-        setProjects(data);
-        setLastSaved(JSON.stringify(data));
+  useEffect(function() {
+    setSyncStatus("syncing");
+    const ref = doc(db, COLLECTION, DB_DOC);
+    const unsub = onSnapshot(ref, async function(snap) {
+      if (snap.exists()) {
+        const data = snap.data();
+        if (data && data.projects) {
+          setProjects(data.projects);
+          setSyncStatus("synced");
+        }
       } else {
+        await saveProjects(SEED_PROJECTS);
         setProjects(SEED_PROJECTS);
-        await saveToStorage(SEED_PROJECTS);
-        setLastSaved(JSON.stringify(SEED_PROJECTS));
+        setSyncStatus("synced");
       }
-      setSyncStatus("synced");
-    })();
+    }, function(err) {
+      console.error("Snapshot error:", err);
+      setSyncStatus("error");
+      showToast("Connection error", "error");
+    });
+    return function() { unsub(); };
   }, []);
 
-  useEffect(() => {
-    if (!projects) return;
-    const interval = setInterval(async () => {
-      const data = await loadFromStorage();
-      if (data) {
-        const remote = JSON.stringify(data);
-        if (remote !== lastSaved) {
-          setProjects(data);
-          setLastSaved(remote);
-          showToast("Updated by a team member");
-        }
-      }
-    }, POLL_INTERVAL);
-    return () => clearInterval(interval);
-  }, [projects, lastSaved]);
-
-  const updateProject = useCallback((id, updates) => {
-    setProjects(ps => {
-      const next = ps.map(p => p.id === id ? Object.assign({}, p, updates) : p);
+  const updateProject = useCallback(function(id, updates) {
+    setProjects(function(ps) {
+      const next = ps.map(function(p) { return p.id === id ? Object.assign({}, p, updates) : p; });
       setSyncStatus("syncing");
-      saveToStorage(next).then(ok => {
-        setLastSaved(JSON.stringify(next));
-        setSyncStatus(ok ? "synced" : "error");
-      });
+      saveProjects(next).then(function(ok) { setSyncStatus(ok ? "synced" : "error"); });
       return next;
     });
   }, []);
 
   const selectedProject = projects ? projects.find(function(p) { return p.id === selectedId; }) : null;
 
-  const saveProject = async (data) => {
+  const saveProject = async function(data) {
     var next;
     if (editingProject) {
-      next = projects.map(p => p.id === editingProject.id ? Object.assign({}, p, data) : p);
+      next = projects.map(function(p) { return p.id === editingProject.id ? Object.assign({}, p, data) : p; });
     } else {
-      var newP = Object.assign({}, data, { id: "p" + Date.now(), milestones:[], pos:[], notes:[], checklist:[], progress: data.progress || 0 });
+      var newP = Object.assign({}, data, { id: "p" + Date.now(), milestones: [], pos: [], notes: [], checklist: [], progress: data.progress || 0 });
       next = projects.concat([newP]);
     }
     setSyncStatus("syncing");
-    var ok = await saveToStorage(next);
+    const ok = await saveProjects(next);
     setProjects(next);
-    setLastSaved(JSON.stringify(next));
     setSyncStatus(ok ? "synced" : "error");
     showToast(editingProject ? "Project updated" : "Project created");
     setShowModal(false);
   };
 
-  const deleteProject = async (id) => {
-    var next = projects.filter(p => p.id !== id);
+  const deleteProject = async function(id) {
+    var next = projects.filter(function(p) { return p.id !== id; });
     setSyncStatus("syncing");
-    var ok = await saveToStorage(next);
+    const ok = await saveProjects(next);
     setProjects(next);
-    setLastSaved(JSON.stringify(next));
     setSyncStatus(ok ? "synced" : "error");
     showToast("Project deleted");
     setView("dashboard");
@@ -389,97 +317,73 @@ export default function App() {
         <div className="loading-screen">
           <div className="loading-title">HOLLYWOOD</div>
           <div className="spinner" />
-          <div className="loading-sub">LOADING SHARED DATA...</div>
+          <div className="loading-sub">CONNECTING TO DATABASE...</div>
         </div>
       </>
     );
   }
 
+  const syncColor = syncStatus === "synced" ? "var(--green)" : syncStatus === "syncing" ? "var(--yellow)" : "var(--red)";
+  const syncText = syncStatus === "synced" ? "SYNCED" : syncStatus === "syncing" ? "SAVING..." : "SYNC ERROR";
+
   return (
     <>
       <style>{styles}</style>
       <div className="app">
-        <div className={"sidebar-overlay" + (sidebarOpen ? " open" : "")} onClick={() => setSidebarOpen(false)} />
+        <div className={"sidebar-overlay" + (sidebarOpen ? " open" : "")} onClick={function() { setSidebarOpen(false); }} />
         <div className={"sidebar" + (sidebarOpen ? " open" : "")}>
           <div className="sidebar-logo">HOLLYWOOD<span>PROPERTY SOLUTIONS</span></div>
           <nav className="sidebar-nav">
-            <div
-              className={"nav-item" + (view === "dashboard" || view === "detail" ? " active" : "")}
-              onClick={() => { setView("dashboard"); setSelectedId(null); setSidebarOpen(false); }}
-            >
-              <span style={{fontSize:15}}>&#9632;</span>All Projects
+            <div className={"nav-item" + (view === "dashboard" || view === "detail" ? " active" : "")}
+              onClick={function() { setView("dashboard"); setSelectedId(null); setSidebarOpen(false); }}>
+              All Projects
             </div>
-            <div
-              className={"nav-item" + (view === "calendar" ? " active" : "")}
-              onClick={() => { setView("calendar"); setSidebarOpen(false); }}
-            >
-              <span style={{fontSize:15}}>&#128197;</span>Calendar
+            <div className={"nav-item" + (view === "calendar" ? " active" : "")}
+              onClick={function() { setView("calendar"); setSidebarOpen(false); }}>
+              Calendar
             </div>
           </nav>
-          <div className="sync-status" style={{color: syncStatus === "synced" ? "var(--green)" : syncStatus === "syncing" ? "var(--yellow)" : "var(--red)"}}>
+          <div className="sync-status" style={{color: syncColor}}>
             <div className={"sync-dot " + syncStatus} />
-            {syncStatus === "synced" ? "SYNCED" : syncStatus === "syncing" ? "SAVING..." : "SYNC ERROR"}
+            {syncText}
           </div>
           <div style={{padding:"4px 20px 16px",fontSize:10,color:"var(--text-dim)",fontFamily:"'IBM Plex Mono',monospace",lineHeight:1.5}}>
-            Shared across<br />all team members
+            Live sync across all team members
           </div>
         </div>
-
         <div className="main">
-          {view === "dashboard" && (
-            <Dashboard
-              projects={projects}
-              onOpen={function(id) { setSelectedId(id); setView("detail"); }}
-              onNew={function() { setEditingProject(null); setShowModal(true); }}
-              sidebarOpen={sidebarOpen}
-              setSidebarOpen={setSidebarOpen}
-            />
-          )}
-          {view === "detail" && selectedProject && (
-            <DetailView
-              project={selectedProject}
-              onBack={() => setView("dashboard")}
-              onUpdate={(u) => updateProject(selectedProject.id, u)}
-              onEdit={() => { setEditingProject(selectedProject); setShowModal(true); }}
-              onDelete={() => deleteProject(selectedProject.id)}
-              setSidebarOpen={setSidebarOpen}
-            />
-          )}
-          {view === "calendar" && (
-            <CalendarView
-              projects={projects}
-              onOpen={function(id) { setSelectedId(id); setView("detail"); }}
-              setSidebarOpen={setSidebarOpen}
-            />
-          )}
+          {view === "dashboard" && <Dashboard projects={projects} onOpen={function(id){setSelectedId(id);setView("detail");}} onNew={function(){setEditingProject(null);setShowModal(true);}} setSidebarOpen={setSidebarOpen} />}
+          {view === "detail" && selectedProject && <DetailView project={selectedProject} onBack={function(){setView("dashboard");}} onUpdate={function(u){updateProject(selectedProject.id,u);}} onEdit={function(){setEditingProject(selectedProject);setShowModal(true);}} onDelete={function(){deleteProject(selectedProject.id);}} setSidebarOpen={setSidebarOpen} />}
+          {view === "calendar" && <CalendarView projects={projects} onOpen={function(id){setSelectedId(id);setView("detail");}} setSidebarOpen={setSidebarOpen} />}
         </div>
       </div>
-      {showModal && <ProjectModal project={editingProject} onSave={saveProject} onClose={() => setShowModal(false)} />}
+      {showModal && <ProjectModal project={editingProject} onSave={saveProject} onClose={function(){setShowModal(false);}} />}
       {toast && <div className={"toast" + (toast.type === "error" ? " error" : "")}>{toast.msg}</div>}
     </>
   );
 }
 
-function HamburgerBtn({ setSidebarOpen }) {
+function HamburgerBtn(props) {
   return (
-    <button className="hamburger" onClick={() => setSidebarOpen(function(o) { return !o; })}>
+    <button className="hamburger" onClick={function() { props.setSidebarOpen(function(o) { return !o; }); }}>
       &#9776;
     </button>
   );
 }
 
-function Dashboard({ projects, onOpen, onNew, setSidebarOpen }) {
-  var active = projects.filter(p => p.status === "active").length;
+function Dashboard(props) {
+  var projects = props.projects;
+  var active = projects.filter(function(p) { return p.status === "active"; }).length;
   var totalContract = projects.reduce(function(s, p) { return s + (Number(p.contract) || 0); }, 0);
-  var totalTasks = projects.reduce(function(s, p) { return s + p.checklist.filter(c => !c.done).length; }, 0);
+  var totalTasks = projects.reduce(function(s, p) { return s + p.checklist.filter(function(c) { return !c.done; }).length; }, 0);
   return (
     <>
       <div className="topbar">
         <div className="topbar-left">
-          <HamburgerBtn setSidebarOpen={setSidebarOpen} />
+          <HamburgerBtn setSidebarOpen={props.setSidebarOpen} />
           <div className="topbar-title">PROJECT <span>DASHBOARD</span></div>
         </div>
-        <button className="btn btn-amber" onClick={onNew}>+ New Project</button>
+        <button className="btn btn-amber" onClick={props.onNew}>+ New Project</button>
       </div>
       <div className="content">
         <div className="stats-bar">
@@ -492,21 +396,18 @@ function Dashboard({ projects, onOpen, onNew, setSidebarOpen }) {
         <div className="projects-grid">
           {projects.map(function(p) {
             return (
-              <div key={p.id} className={"project-card " + statusCardClass[p.status]} onClick={() => onOpen(p.id)}>
+              <div key={p.id} className={"project-card " + (statusCardClass[p.status] || "")} onClick={function() { props.onOpen(p.id); }}>
                 <div className="card-header">
-                  <div>
-                    <div className="card-name">{p.name}</div>
-                    <div className="card-client">{p.client}</div>
-                  </div>
-                  <span className={"status-badge " + badgeClass[p.status]}>{statusLabel[p.status]}</span>
+                  <div><div className="card-name">{p.name}</div><div className="card-client">{p.client}</div></div>
+                  <span className={"status-badge " + (badgeClass[p.status] || "")}>{statusLabel[p.status]}</span>
                 </div>
                 <div className="card-meta">
                   <div className="meta-item"><strong>PM</strong>{p.pm}</div>
                   <div className="meta-item"><strong>Contract</strong><span className="contract-value">{fmtMoney(p.contract)}</span></div>
                   <div className="meta-item"><strong>End Date</strong>{fmt(p.end)}</div>
                 </div>
-                <div className="progress-bar"><div className="progress-fill" style={{width: p.progress + "%"}} /></div>
-                <div className="progress-label"><span>Progress</span><span>{p.progress}%</span></div>
+                <div className="progress-bar"><div className="progress-fill" style={{width: (p.progress || 0) + "%"}} /></div>
+                <div className="progress-label"><span>Progress</span><span>{p.progress || 0}%</span></div>
               </div>
             );
           })}
@@ -516,7 +417,8 @@ function Dashboard({ projects, onOpen, onNew, setSidebarOpen }) {
   );
 }
 
-function DetailView({ project, onBack, onUpdate, onEdit, onDelete, setSidebarOpen }) {
+function DetailView(props) {
+  var project = props.project;
   const [tab, setTab] = useState("timeline");
   const [confirmDelete, setConfirmDelete] = useState(false);
   var tabs = ["timeline","purchase orders","notes","checklist"];
@@ -524,25 +426,24 @@ function DetailView({ project, onBack, onUpdate, onEdit, onDelete, setSidebarOpe
     <>
       <div className="topbar">
         <div className="topbar-left">
-          <HamburgerBtn setSidebarOpen={setSidebarOpen} />
-          <div className="back-btn" onClick={onBack}>&#8592; Back</div>
+          <HamburgerBtn setSidebarOpen={props.setSidebarOpen} />
+          <div className="back-btn" onClick={props.onBack}>&#8592; Back</div>
         </div>
-        <div style={{display:"flex", gap:6, flexWrap:"wrap"}}>
-          <button className="btn btn-ghost btn-sm" onClick={onEdit}>Edit</button>
-          {confirmDelete
-            ? (
-              <>
-                <button className="btn btn-sm" style={{background:"var(--red)",color:"#fff",border:"none"}} onClick={onDelete}>Confirm</button>
-                <button className="btn btn-ghost btn-sm" onClick={() => setConfirmDelete(false)}>Cancel</button>
-              </>
-            )
-            : <button className="btn btn-ghost btn-sm" style={{color:"var(--red)",borderColor:"var(--red)"}} onClick={() => setConfirmDelete(true)}>Delete</button>
-          }
+        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+          <button className="btn btn-ghost btn-sm" onClick={props.onEdit}>Edit</button>
+          {confirmDelete ? (
+            <>
+              <button className="btn btn-sm" style={{background:"var(--red)",color:"#fff",border:"none"}} onClick={props.onDelete}>Confirm</button>
+              <button className="btn btn-ghost btn-sm" onClick={function(){setConfirmDelete(false);}}>Cancel</button>
+            </>
+          ) : (
+            <button className="btn btn-ghost btn-sm" style={{color:"var(--red)",borderColor:"var(--red)"}} onClick={function(){setConfirmDelete(true);}}>Delete</button>
+          )}
         </div>
       </div>
       <div className="content">
         <div className="detail-header">
-          <div style={{display:"flex", justifyContent:"space-between", alignItems:"flex-start", flexWrap:"wrap", gap:10}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:10}}>
             <div>
               <div className="detail-title">{project.name}</div>
               <div className="detail-meta">
@@ -554,45 +455,47 @@ function DetailView({ project, onBack, onUpdate, onEdit, onDelete, setSidebarOpe
                 <div className="meta-item"><strong>End</strong>{fmt(project.end)}</div>
               </div>
             </div>
-            <div style={{display:"flex", alignItems:"center", gap:10}}>
-              <span className={"status-badge " + badgeClass[project.status]}>{statusLabel[project.status]}</span>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <span className={"status-badge " + (badgeClass[project.status] || "")}>{statusLabel[project.status]}</span>
               <div style={{textAlign:"right"}}>
-                <div style={{fontSize:22,fontFamily:"'Bebas Neue',cursive",color:"var(--amber)"}}>{project.progress}%</div>
+                <div style={{fontSize:22,fontFamily:"'Bebas Neue',cursive",color:"var(--amber)"}}>{project.progress || 0}%</div>
                 <div style={{fontSize:10,color:"var(--text-dim)",fontFamily:"'IBM Plex Mono',monospace"}}>COMPLETE</div>
               </div>
             </div>
           </div>
-          <div className="progress-bar" style={{marginTop:14,height:5}}><div className="progress-fill" style={{width: project.progress + "%"}} /></div>
+          <div className="progress-bar" style={{marginTop:14,height:5}}>
+            <div className="progress-fill" style={{width: (project.progress || 0) + "%"}} />
+          </div>
         </div>
         <div className="tabs">
-          {tabs.map(t => <div key={t} className={"tab" + (tab === t ? " active" : "")} onClick={() => setTab(t)}>{t.toUpperCase()}</div>)}
+          {tabs.map(function(t) { return <div key={t} className={"tab" + (tab === t ? " active" : "")} onClick={function(){setTab(t);}}>{t.toUpperCase()}</div>; })}
         </div>
-        {tab === "timeline" && <TimelineTab project={project} onUpdate={onUpdate} />}
-        {tab === "purchase orders" && <POTab project={project} onUpdate={onUpdate} />}
-        {tab === "notes" && <NotesTab project={project} onUpdate={onUpdate} />}
-        {tab === "checklist" && <ChecklistTab project={project} onUpdate={onUpdate} />}
+        {tab === "timeline" && <TimelineTab project={project} onUpdate={props.onUpdate} />}
+        {tab === "purchase orders" && <POTab project={project} onUpdate={props.onUpdate} />}
+        {tab === "notes" && <NotesTab project={project} onUpdate={props.onUpdate} />}
+        {tab === "checklist" && <ChecklistTab project={project} onUpdate={props.onUpdate} />}
       </div>
     </>
   );
 }
 
-function TimelineTab({ project, onUpdate }) {
+function TimelineTab(props) {
+  var project = props.project;
   const [form, setForm] = useState({ name:"", date:"", notes:"" });
   const [adding, setAdding] = useState(false);
-  const add = () => {
+  const statusColors = { done:"var(--green)", active:"var(--amber)", upcoming:"var(--text-dim)" };
+  function add() {
     if (!form.name || !form.date) return;
     var m = { id: "m"+Date.now(), name:form.name, date:form.date, status:"upcoming", notes:form.notes };
-    var sorted = project.milestones.concat([m]).sort(function(a,b) { return a.date.localeCompare(b.date); });
-    onUpdate({ milestones: sorted });
-    setForm({ name:"", date:"", notes:"" });
-    setAdding(false);
-  };
-  const cycle = (id) => {
-    var next = { done:"active", active:"upcoming", upcoming:"done" };
-    onUpdate({ milestones: project.milestones.map(m => m.id===id ? Object.assign({},m,{status:next[m.status]}) : m) });
-  };
-  const remove = (id) => onUpdate({ milestones: project.milestones.filter(m => m.id!==id) });
-  var statusColor = { done:"var(--green)", active:"var(--amber)", upcoming:"var(--text-dim)" };
+    var sorted = project.milestones.concat([m]).sort(function(a,b){return a.date.localeCompare(b.date);});
+    props.onUpdate({ milestones: sorted });
+    setForm({ name:"", date:"", notes:"" }); setAdding(false);
+  }
+  function cycle(id) {
+    var nxt = { done:"active", active:"upcoming", upcoming:"done" };
+    props.onUpdate({ milestones: project.milestones.map(function(m){return m.id===id?Object.assign({},m,{status:nxt[m.status]}):m;}) });
+  }
+  function remove(id) { props.onUpdate({ milestones: project.milestones.filter(function(m){return m.id!==id;}) }); }
   return (
     <div>
       <div className="section-title">Milestones</div>
@@ -601,15 +504,15 @@ function TimelineTab({ project, onUpdate }) {
         {project.milestones.map(function(m) {
           return (
             <div key={m.id} className="timeline-item">
-              <div className={"timeline-dot " + m.status} onClick={() => cycle(m.id)} title="Tap to cycle status" />
+              <div className={"timeline-dot " + m.status} onClick={function(){cycle(m.id);}} title="Tap to cycle status" />
               <div className="timeline-content">
-                <div style={{display:"flex", justifyContent:"space-between", alignItems:"flex-start"}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
                   <div>
                     <div className="timeline-name">{m.name}</div>
-                    <div className="timeline-date">{fmt(m.date)} &middot; <span style={{color:statusColor[m.status]}}>{m.status.toUpperCase()}</span></div>
+                    <div className="timeline-date">{fmt(m.date)} &middot; <span style={{color:statusColors[m.status]}}>{m.status.toUpperCase()}</span></div>
                     {m.notes ? <div className="timeline-notes">{m.notes}</div> : null}
                   </div>
-                  <button className="btn btn-ghost btn-sm" style={{color:"var(--red)",borderColor:"transparent"}} onClick={() => remove(m.id)}>x</button>
+                  <button className="btn btn-ghost btn-sm" style={{color:"var(--red)",borderColor:"transparent"}} onClick={function(){remove(m.id);}}>x</button>
                 </div>
               </div>
             </div>
@@ -620,34 +523,32 @@ function TimelineTab({ project, onUpdate }) {
         <div className="add-form">
           <div style={{fontFamily:"'Bebas Neue',cursive",letterSpacing:2,marginBottom:12,color:"var(--amber)"}}>ADD MILESTONE</div>
           <div className="input-row">
-            <input placeholder="Milestone name" value={form.name} onChange={e => setForm(Object.assign({},form,{name:e.target.value}))} />
-            <input type="date" value={form.date} onChange={e => setForm(Object.assign({},form,{date:e.target.value}))} />
+            <input placeholder="Milestone name" value={form.name} onChange={function(e){setForm(Object.assign({},form,{name:e.target.value}));}} />
+            <input type="date" value={form.date} onChange={function(e){setForm(Object.assign({},form,{date:e.target.value}));}} />
           </div>
-          <input placeholder="Notes (optional)" value={form.notes} onChange={e => setForm(Object.assign({},form,{notes:e.target.value}))} style={{marginBottom:10,width:"100%"}} />
+          <input placeholder="Notes (optional)" value={form.notes} onChange={function(e){setForm(Object.assign({},form,{notes:e.target.value}));}} style={{marginBottom:10,width:"100%"}} />
           <div style={{display:"flex",gap:8}}>
             <button className="btn btn-amber btn-sm" onClick={add}>Add</button>
-            <button className="btn btn-ghost btn-sm" onClick={() => setAdding(false)}>Cancel</button>
+            <button className="btn btn-ghost btn-sm" onClick={function(){setAdding(false);}}>Cancel</button>
           </div>
         </div>
-      ) : (
-        <button className="btn btn-ghost btn-sm" style={{marginTop:14}} onClick={() => setAdding(true)}>+ Add Milestone</button>
-      )}
+      ) : <button className="btn btn-ghost btn-sm" style={{marginTop:14}} onClick={function(){setAdding(true);}}>+ Add Milestone</button>}
     </div>
   );
 }
 
-function POTab({ project, onUpdate }) {
+function POTab(props) {
+  var project = props.project;
   const [form, setForm] = useState({ po:"", vendor:"", desc:"", amount:"", date:"", status:"Pending" });
   const [adding, setAdding] = useState(false);
-  const add = () => {
+  var statusColors = { Pending:"var(--yellow)", Approved:"var(--steel)", Received:"var(--green)" };
+  var total = project.pos.reduce(function(s,p){return s+(Number(p.amount)||0);},0);
+  function add() {
     if (!form.po || !form.vendor) return;
-    onUpdate({ pos: project.pos.concat([Object.assign({},form,{id:"po"+Date.now(),amount:Number(form.amount)})]) });
-    setForm({ po:"", vendor:"", desc:"", amount:"", date:"", status:"Pending" });
-    setAdding(false);
-  };
-  const remove = (id) => onUpdate({ pos: project.pos.filter(p => p.id!==id) });
-  var statusColor = { Pending:"var(--yellow)", Approved:"var(--steel)", Received:"var(--green)" };
-  var total = project.pos.reduce(function(s,p) { return s+(Number(p.amount)||0); }, 0);
+    props.onUpdate({ pos: project.pos.concat([Object.assign({},form,{id:"po"+Date.now(),amount:Number(form.amount)})]) });
+    setForm({ po:"", vendor:"", desc:"", amount:"", date:"", status:"Pending" }); setAdding(false);
+  }
+  function remove(id) { props.onUpdate({ pos: project.pos.filter(function(p){return p.id!==id;}) }); }
   return (
     <div>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
@@ -664,12 +565,11 @@ function POTab({ project, onUpdate }) {
                 return (
                   <tr key={p.id}>
                     <td style={{fontFamily:"'IBM Plex Mono',monospace",color:"var(--amber)"}}>{p.po}</td>
-                    <td>{p.vendor}</td>
-                    <td style={{color:"var(--text-dim)"}}>{p.desc}</td>
+                    <td>{p.vendor}</td><td style={{color:"var(--text-dim)"}}>{p.desc}</td>
                     <td className="contract-value">{fmtMoney(p.amount)}</td>
                     <td style={{fontFamily:"'IBM Plex Mono',monospace",fontSize:11}}>{fmt(p.date)}</td>
-                    <td><span style={{color:statusColor[p.status],fontSize:11,fontFamily:"'IBM Plex Mono',monospace",fontWeight:700}}>{p.status}</span></td>
-                    <td><button className="btn btn-ghost btn-sm" style={{color:"var(--red)",borderColor:"transparent"}} onClick={() => remove(p.id)}>x</button></td>
+                    <td><span style={{color:statusColors[p.status],fontSize:11,fontFamily:"'IBM Plex Mono',monospace",fontWeight:700}}>{p.status}</span></td>
+                    <td><button className="btn btn-ghost btn-sm" style={{color:"var(--red)",borderColor:"transparent"}} onClick={function(){remove(p.id);}}>x</button></td>
                   </tr>
                 );
               })}
@@ -681,59 +581,54 @@ function POTab({ project, onUpdate }) {
         <div className="add-form">
           <div style={{fontFamily:"'Bebas Neue',cursive",letterSpacing:2,marginBottom:12,color:"var(--amber)"}}>ADD PURCHASE ORDER</div>
           <div className="input-row">
-            <input placeholder="P.O. Number" value={form.po} onChange={e => setForm(Object.assign({},form,{po:e.target.value}))} />
-            <input placeholder="Vendor" value={form.vendor} onChange={e => setForm(Object.assign({},form,{vendor:e.target.value}))} />
+            <input placeholder="P.O. Number" value={form.po} onChange={function(e){setForm(Object.assign({},form,{po:e.target.value}));}} />
+            <input placeholder="Vendor" value={form.vendor} onChange={function(e){setForm(Object.assign({},form,{vendor:e.target.value}));}} />
           </div>
           <div className="input-row">
-            <input placeholder="Description" value={form.desc} onChange={e => setForm(Object.assign({},form,{desc:e.target.value}))} />
-            <input placeholder="Amount" type="number" value={form.amount} onChange={e => setForm(Object.assign({},form,{amount:e.target.value}))} />
+            <input placeholder="Description" value={form.desc} onChange={function(e){setForm(Object.assign({},form,{desc:e.target.value}));}} />
+            <input placeholder="Amount" type="number" value={form.amount} onChange={function(e){setForm(Object.assign({},form,{amount:e.target.value}));}} />
           </div>
           <div className="input-row">
-            <input type="date" value={form.date} onChange={e => setForm(Object.assign({},form,{date:e.target.value}))} />
-            <select value={form.status} onChange={e => setForm(Object.assign({},form,{status:e.target.value}))}>
-              <option>Pending</option><option>Approved</option><option>Received</option>
-            </select>
+            <input type="date" value={form.date} onChange={function(e){setForm(Object.assign({},form,{date:e.target.value}));}} />
+            <select value={form.status} onChange={function(e){setForm(Object.assign({},form,{status:e.target.value}));}}><option>Pending</option><option>Approved</option><option>Received</option></select>
           </div>
           <div style={{display:"flex",gap:8}}>
             <button className="btn btn-amber btn-sm" onClick={add}>Add P.O.</button>
-            <button className="btn btn-ghost btn-sm" onClick={() => setAdding(false)}>Cancel</button>
+            <button className="btn btn-ghost btn-sm" onClick={function(){setAdding(false);}}>Cancel</button>
           </div>
         </div>
-      ) : (
-        <button className="btn btn-ghost btn-sm" onClick={() => setAdding(true)}>+ Add Purchase Order</button>
-      )}
+      ) : <button className="btn btn-ghost btn-sm" onClick={function(){setAdding(true);}}>+ Add Purchase Order</button>}
     </div>
   );
 }
 
-function NotesTab({ project, onUpdate }) {
+function NotesTab(props) {
+  var project = props.project;
   const [text, setText] = useState("");
   const [tag, setTag] = useState("internal");
   const [author, setAuthor] = useState("");
-  const add = () => {
+  var tagLabels = { client:"Client Call", site:"Site Visit", vendor:"Vendor", internal:"Internal" };
+  function add() {
     if (!text.trim()) return;
     var now = new Date();
     var dateStr = now.toISOString().slice(0,10) + " " + now.toTimeString().slice(0,5);
     var label = author.trim() ? "[" + author.trim() + "] " + text : text;
-    onUpdate({ notes: [{ id:"n"+Date.now(), tag:tag, text:label, date:dateStr }].concat(project.notes) });
+    props.onUpdate({ notes: [{ id:"n"+Date.now(), tag:tag, text:label, date:dateStr }].concat(project.notes) });
     setText("");
-  };
-  const remove = (id) => onUpdate({ notes: project.notes.filter(n => n.id!==id) });
-  var tagLabels = { client:"Client Call", site:"Site Visit", vendor:"Vendor", internal:"Internal" };
+  }
+  function remove(id) { props.onUpdate({ notes: project.notes.filter(function(n){return n.id!==id;}) }); }
   return (
     <div>
-      <div className="section-title">Notes & Discussions</div>
+      <div className="section-title">Notes and Discussions</div>
       <div style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:5,padding:14,marginBottom:16}}>
         <div className="input-row">
-          <input placeholder="Your name (optional)" value={author} onChange={e => setAuthor(e.target.value)} style={{flex:"0 0 160px"}} />
-          <select value={tag} onChange={e => setTag(e.target.value)}>
-            <option value="internal">Internal</option>
-            <option value="client">Client Call</option>
-            <option value="site">Site Visit</option>
-            <option value="vendor">Vendor</option>
+          <input placeholder="Your name (optional)" value={author} onChange={function(e){setAuthor(e.target.value);}} style={{flex:"0 0 160px"}} />
+          <select value={tag} onChange={function(e){setTag(e.target.value);}}>
+            <option value="internal">Internal</option><option value="client">Client Call</option>
+            <option value="site">Site Visit</option><option value="vendor">Vendor</option>
           </select>
         </div>
-        <textarea placeholder="Add a note or discussion entry..." value={text} onChange={e => setText(e.target.value)} style={{marginBottom:10}} />
+        <textarea placeholder="Add a note..." value={text} onChange={function(e){setText(e.target.value);}} style={{marginBottom:10}} />
         <button className="btn btn-amber btn-sm" onClick={add}>Add Note</button>
       </div>
       {project.notes.length === 0 && <div className="empty">No notes yet.</div>}
@@ -744,7 +639,7 @@ function NotesTab({ project, onUpdate }) {
               <span className={"note-tag tag-" + n.tag}>{tagLabels[n.tag]}</span>
               <div style={{display:"flex",alignItems:"center",gap:8}}>
                 <span className="note-time">{n.date}</span>
-                <button className="btn btn-ghost btn-sm" style={{color:"var(--red)",borderColor:"transparent"}} onClick={() => remove(n.id)}>x</button>
+                <button className="btn btn-ghost btn-sm" style={{color:"var(--red)",borderColor:"transparent"}} onClick={function(){remove(n.id);}}>x</button>
               </div>
             </div>
             <div className="note-text">{n.text}</div>
@@ -755,25 +650,24 @@ function NotesTab({ project, onUpdate }) {
   );
 }
 
-function ChecklistTab({ project, onUpdate }) {
+function ChecklistTab(props) {
+  var project = props.project;
   const [form, setForm] = useState({ text:"", due:"", priority:"medium" });
   const [adding, setAdding] = useState(false);
-  const toggle = (id) => onUpdate({ checklist: project.checklist.map(c => c.id===id ? Object.assign({},c,{done:!c.done}) : c) });
-  const remove = (id) => onUpdate({ checklist: project.checklist.filter(c => c.id!==id) });
-  const add = () => {
+  function toggle(id) { props.onUpdate({ checklist: project.checklist.map(function(c){return c.id===id?Object.assign({},c,{done:!c.done}):c;}) }); }
+  function remove(id) { props.onUpdate({ checklist: project.checklist.filter(function(c){return c.id!==id;}) }); }
+  function add() {
     if (!form.text.trim()) return;
-    onUpdate({ checklist: project.checklist.concat([{ id:"c"+Date.now(), text:form.text, due:form.due, priority:form.priority, done:false }]) });
-    setForm({ text:"", due:"", priority:"medium" });
-    setAdding(false);
-  };
-  var open = project.checklist.filter(c => !c.done);
-  var done = project.checklist.filter(c => c.done);
-
-  function Item(props) {
-    var c = props.c;
+    props.onUpdate({ checklist: project.checklist.concat([{ id:"c"+Date.now(), text:form.text, due:form.due, priority:form.priority, done:false }]) });
+    setForm({ text:"", due:"", priority:"medium" }); setAdding(false);
+  }
+  var open = project.checklist.filter(function(c){return !c.done;});
+  var done = project.checklist.filter(function(c){return c.done;});
+  function Item(p) {
+    var c = p.c;
     return (
       <div className={"check-item" + (c.done ? " done" : "")}>
-        <div className={"custom-check" + (c.done ? " checked" : "")} onClick={() => toggle(c.id)}>
+        <div className={"custom-check" + (c.done ? " checked" : "")} onClick={function(){toggle(c.id);}}>
           {c.done ? <span style={{fontSize:10,color:"#000",fontWeight:900}}>&#10003;</span> : null}
         </div>
         <div style={{flex:1}}>
@@ -783,64 +677,48 @@ function ChecklistTab({ project, onUpdate }) {
             {c.due ? <span style={{fontSize:11,color:"var(--text-dim)",fontFamily:"'IBM Plex Mono',monospace"}}>Due {fmt(c.due)}</span> : null}
           </div>
         </div>
-        <button className="btn btn-ghost btn-sm" style={{color:"var(--red)",borderColor:"transparent"}} onClick={() => remove(c.id)}>x</button>
+        <button className="btn btn-ghost btn-sm" style={{color:"var(--red)",borderColor:"transparent"}} onClick={function(){remove(c.id);}}>x</button>
       </div>
     );
   }
-
   return (
     <div>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
         <div className="section-title" style={{margin:0}}>Checklist</div>
         <span style={{fontSize:11,fontFamily:"'IBM Plex Mono',monospace",color:"var(--text-dim)"}}>{done.length}/{project.checklist.length} complete</span>
       </div>
-      {open.length > 0 && (
-        <>
-          <div style={{fontSize:10,letterSpacing:2,color:"var(--text-dim)",marginBottom:8,fontFamily:"'IBM Plex Mono',monospace"}}>OPEN</div>
-          {open.map(c => <Item key={c.id} c={c} />)}
-        </>
-      )}
-      {done.length > 0 && (
-        <>
-          <div style={{fontSize:10,letterSpacing:2,color:"var(--text-dim)",margin:"16px 0 8px",fontFamily:"'IBM Plex Mono',monospace"}}>COMPLETED</div>
-          {done.map(c => <Item key={c.id} c={c} />)}
-        </>
-      )}
+      {open.length > 0 && <><div style={{fontSize:10,letterSpacing:2,color:"var(--text-dim)",marginBottom:8,fontFamily:"'IBM Plex Mono',monospace"}}>OPEN</div>{open.map(function(c){return <Item key={c.id} c={c} />;})}</>}
+      {done.length > 0 && <><div style={{fontSize:10,letterSpacing:2,color:"var(--text-dim)",margin:"16px 0 8px",fontFamily:"'IBM Plex Mono',monospace"}}>COMPLETED</div>{done.map(function(c){return <Item key={c.id} c={c} />;})}</>}
       {project.checklist.length === 0 && <div className="empty">No tasks yet.</div>}
       {adding ? (
         <div className="add-form" style={{marginTop:14}}>
           <div style={{fontFamily:"'Bebas Neue',cursive",letterSpacing:2,marginBottom:12,color:"var(--amber)"}}>ADD TASK</div>
-          <input placeholder="Task description" value={form.text} onChange={e => setForm(Object.assign({},form,{text:e.target.value}))} style={{marginBottom:10,width:"100%"}} />
+          <input placeholder="Task description" value={form.text} onChange={function(e){setForm(Object.assign({},form,{text:e.target.value}));}} style={{marginBottom:10,width:"100%"}} />
           <div className="input-row">
-            <input type="date" value={form.due} onChange={e => setForm(Object.assign({},form,{due:e.target.value}))} />
-            <select value={form.priority} onChange={e => setForm(Object.assign({},form,{priority:e.target.value}))}>
-              <option value="high">High Priority</option>
-              <option value="medium">Medium Priority</option>
-              <option value="low">Low Priority</option>
+            <input type="date" value={form.due} onChange={function(e){setForm(Object.assign({},form,{due:e.target.value}));}} />
+            <select value={form.priority} onChange={function(e){setForm(Object.assign({},form,{priority:e.target.value}));}}>
+              <option value="high">High Priority</option><option value="medium">Medium Priority</option><option value="low">Low Priority</option>
             </select>
           </div>
           <div style={{display:"flex",gap:8}}>
             <button className="btn btn-amber btn-sm" onClick={add}>Add Task</button>
-            <button className="btn btn-ghost btn-sm" onClick={() => setAdding(false)}>Cancel</button>
+            <button className="btn btn-ghost btn-sm" onClick={function(){setAdding(false);}}>Cancel</button>
           </div>
         </div>
-      ) : (
-        <button className="btn btn-ghost btn-sm" style={{marginTop:14}} onClick={() => setAdding(true)}>+ Add Task</button>
-      )}
+      ) : <button className="btn btn-ghost btn-sm" style={{marginTop:14}} onClick={function(){setAdding(true);}}>+ Add Task</button>}
     </div>
   );
 }
 
-function CalendarView({ projects, onOpen, setSidebarOpen }) {
+function CalendarView(props) {
+  var projects = props.projects;
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
-  const prev = () => { if (month===0){setMonth(11);setYear(y=>y-1);}else setMonth(m=>m-1); };
-  const next = () => { if (month===11){setMonth(0);setYear(y=>y+1);}else setMonth(m=>m+1); };
-  const allEvents = useMemo(() => {
+  const allEvents = useMemo(function() {
     var evs = [];
     projects.forEach(function(p,pi) {
-      p.milestones.forEach(function(m) {
+      (p.milestones || []).forEach(function(m) {
         evs.push({ date:m.date, label:m.name, projectId:p.id, color:PROJECT_COLORS[pi%PROJECT_COLORS.length] });
       });
     });
@@ -853,58 +731,37 @@ function CalendarView({ projects, onOpen, setSidebarOpen }) {
   for (var i = firstDay-1; i >= 0; i--) cells.push({ day:daysInPrev-i, current:false });
   for (var j = 1; j <= daysInMonth; j++) cells.push({ day:j, current:true });
   while (cells.length%7!==0) cells.push({ day:cells.length-daysInMonth-firstDay+1, current:false });
-
-  const eventsOn = (day, curr) => {
+  function eventsOn(day, curr) {
     if (!curr) return [];
-    var mm = String(month+1).padStart(2,"0");
-    var dd = String(day).padStart(2,"0");
-    var ds = year + "-" + mm + "-" + dd;
-    return allEvents.filter(e => e.date===ds);
-  };
-
+    var ds = year + "-" + String(month+1).padStart(2,"0") + "-" + String(day).padStart(2,"0");
+    return allEvents.filter(function(e){return e.date===ds;});
+  }
   return (
     <>
       <div className="topbar">
         <div className="topbar-left">
-          <HamburgerBtn setSidebarOpen={setSidebarOpen} />
+          <HamburgerBtn setSidebarOpen={props.setSidebarOpen} />
           <div className="topbar-title">PROJECT <span>CALENDAR</span></div>
         </div>
       </div>
       <div className="content">
         <div className="cal-nav">
-          <button className="btn btn-ghost btn-sm" onClick={prev}>&#8249;</button>
+          <button className="btn btn-ghost btn-sm" onClick={function(){if(month===0){setMonth(11);setYear(function(y){return y-1;});}else setMonth(function(m){return m-1;});}}>&#8249;</button>
           <div className="cal-month">{MONTHS[month]} {year}</div>
-          <button className="btn btn-ghost btn-sm" onClick={next}>&#8250;</button>
+          <button className="btn btn-ghost btn-sm" onClick={function(){if(month===11){setMonth(0);setYear(function(y){return y+1;});}else setMonth(function(m){return m+1;});}}>&#8250;</button>
         </div>
         <div style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:14}}>
-          {projects.map(function(p,i) {
-            return (
-              <div key={p.id} style={{display:"flex",alignItems:"center",gap:5,cursor:"pointer"}} onClick={() => onOpen(p.id)}>
-                <div style={{width:9,height:9,borderRadius:2,background:PROJECT_COLORS[i%PROJECT_COLORS.length]}} />
-                <span style={{fontSize:10,color:"var(--text-mid)",fontFamily:"'IBM Plex Mono',monospace"}}>{p.name}</span>
-              </div>
-            );
-          })}
+          {projects.map(function(p,i){return(<div key={p.id} style={{display:"flex",alignItems:"center",gap:5,cursor:"pointer"}} onClick={function(){props.onOpen(p.id);}}><div style={{width:9,height:9,borderRadius:2,background:PROJECT_COLORS[i%PROJECT_COLORS.length]}}/><span style={{fontSize:10,color:"var(--text-mid)",fontFamily:"'IBM Plex Mono',monospace"}}>{p.name}</span></div>);})}
         </div>
         <div className="calendar-grid">
-          {DAYS.map(d => <div key={d} className="cal-header">{d}</div>)}
-          {cells.map(function(cell,idx) {
+          {DAYS.map(function(d){return <div key={d} className="cal-header">{d}</div>;})}
+          {cells.map(function(cell,idx){
             var evs = eventsOn(cell.day, cell.current);
             var isToday = cell.current && cell.day===today.getDate() && month===today.getMonth() && year===today.getFullYear();
-            var cls = "cal-day" + (!cell.current ? " other-month" : "") + (isToday ? " today" : "");
             return (
-              <div key={idx} className={cls}>
+              <div key={idx} className={"cal-day" + (!cell.current?" other-month":"") + (isToday?" today":"")}>
                 <div className="cal-day-num">{cell.day}</div>
-                {evs.map(function(e,ei) {
-                  return (
-                    <div key={ei} className="cal-event"
-                      title={e.label}
-                      style={{background:e.color+"22",color:e.color,border:"1px solid "+e.color+"44"}}
-                      onClick={() => onOpen(e.projectId)}>
-                      {e.label}
-                    </div>
-                  );
-                })}
+                {evs.map(function(e,ei){return(<div key={ei} className="cal-event" title={e.label} style={{background:e.color+"22",color:e.color,border:"1px solid "+e.color+"44"}} onClick={function(){props.onOpen(e.projectId);}}>{e.label}</div>);})}
               </div>
             );
           })}
@@ -914,44 +771,39 @@ function CalendarView({ projects, onOpen, setSidebarOpen }) {
   );
 }
 
-function ProjectModal({ project, onSave, onClose }) {
+function ProjectModal(props) {
+  var project = props.project;
   const [form, setForm] = useState({
-    name: project ? project.name : "",
-    client: project ? project.client : "",
-    address: project ? project.address : "",
-    pm: project ? project.pm : "",
-    contract: project ? project.contract : "",
-    status: project ? project.status : "planning",
-    start: project ? project.start : "",
-    end: project ? project.end : "",
-    progress: project ? project.progress : 0,
+    name: project ? project.name : "", client: project ? project.client : "",
+    address: project ? project.address : "", pm: project ? project.pm : "",
+    contract: project ? project.contract : "", status: project ? project.status : "planning",
+    start: project ? project.start : "", end: project ? project.end : "",
+    progress: project ? project.progress : 0
   });
-  const set = (k,v) => setForm(function(f) { return Object.assign({},f,{[k]:v}); });
+  function set(k,v) { setForm(function(f){return Object.assign({},f,{[k]:v});}); }
   return (
-    <div className="modal-overlay" onClick={function(e) { if(e.target===e.currentTarget) onClose(); }}>
+    <div className="modal-overlay" onClick={function(e){if(e.target===e.currentTarget)props.onClose();}}>
       <div className="modal">
         <div className="modal-title">{project ? "Edit Project" : "New Project"}</div>
         <div className="form-grid">
-          <div className="form-group full"><label>Project Name</label><input value={form.name} onChange={e=>set("name",e.target.value)} placeholder="e.g. Riverside Office Renovation" /></div>
-          <div className="form-group"><label>Client</label><input value={form.client} onChange={e=>set("client",e.target.value)} /></div>
-          <div className="form-group"><label>Project Manager</label><input value={form.pm} onChange={e=>set("pm",e.target.value)} /></div>
-          <div className="form-group full"><label>Site Address</label><input value={form.address} onChange={e=>set("address",e.target.value)} /></div>
-          <div className="form-group"><label>Contract Value ($)</label><input type="number" value={form.contract} onChange={e=>set("contract",e.target.value)} /></div>
+          <div className="form-group full"><label>Project Name</label><input value={form.name} onChange={function(e){set("name",e.target.value);}} placeholder="e.g. Riverside Office Renovation" /></div>
+          <div className="form-group"><label>Client</label><input value={form.client} onChange={function(e){set("client",e.target.value);}} /></div>
+          <div className="form-group"><label>Project Manager</label><input value={form.pm} onChange={function(e){set("pm",e.target.value);}} /></div>
+          <div className="form-group full"><label>Site Address</label><input value={form.address} onChange={function(e){set("address",e.target.value);}} /></div>
+          <div className="form-group"><label>Contract Value ($)</label><input type="number" value={form.contract} onChange={function(e){set("contract",e.target.value);}} /></div>
           <div className="form-group"><label>Status</label>
-            <select value={form.status} onChange={e=>set("status",e.target.value)}>
-              <option value="planning">Planning</option>
-              <option value="active">In Progress</option>
-              <option value="hold">On Hold</option>
-              <option value="complete">Complete</option>
+            <select value={form.status} onChange={function(e){set("status",e.target.value);}}>
+              <option value="planning">Planning</option><option value="active">In Progress</option>
+              <option value="hold">On Hold</option><option value="complete">Complete</option>
             </select>
           </div>
-          <div className="form-group"><label>Start Date</label><input type="date" value={form.start} onChange={e=>set("start",e.target.value)} /></div>
-          <div className="form-group"><label>End Date</label><input type="date" value={form.end} onChange={e=>set("end",e.target.value)} /></div>
-          <div className="form-group full"><label>Progress - {form.progress}%</label><input type="range" min="0" max="100" value={form.progress} onChange={e=>set("progress",Number(e.target.value))} style={{background:"transparent",border:"none",padding:0}} /></div>
+          <div className="form-group"><label>Start Date</label><input type="date" value={form.start} onChange={function(e){set("start",e.target.value);}} /></div>
+          <div className="form-group"><label>End Date</label><input type="date" value={form.end} onChange={function(e){set("end",e.target.value);}} /></div>
+          <div className="form-group full"><label>Progress - {form.progress}%</label><input type="range" min="0" max="100" value={form.progress} onChange={function(e){set("progress",Number(e.target.value));}} style={{background:"transparent",border:"none",padding:0}} /></div>
         </div>
         <div className="form-actions">
-          <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
-          <button className="btn btn-amber" onClick={() => onSave(form)}>Save Project</button>
+          <button className="btn btn-ghost" onClick={props.onClose}>Cancel</button>
+          <button className="btn btn-amber" onClick={function(){props.onSave(form);}}>Save Project</button>
         </div>
       </div>
     </div>
