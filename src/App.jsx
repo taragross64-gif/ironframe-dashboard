@@ -13,7 +13,38 @@ const styles = `
     --text: #e2e8f0; --text-dim: #64748b; --text-mid: #94a3b8;
   }
   .app { display: flex; height: 100vh; overflow: hidden; }
-  .sidebar { width: 220px; min-width: 220px; background: var(--bg2); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 24px 0; }
+
+  /* SIDEBAR */
+  .sidebar {
+    width: 220px; min-width: 220px; background: var(--bg2);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; padding: 24px 0;
+    position: relative; z-index: 50; transition: transform 0.25s ease;
+    height: 100vh;
+  }
+  .sidebar-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.6); z-index: 40;
+  }
+  @media (max-width: 768px) {
+    .sidebar {
+      position: fixed; top: 0; left: 0; bottom: 0;
+      transform: translateX(-100%);
+    }
+    .sidebar.open { transform: translateX(0); }
+    .sidebar-overlay.open { display: block; }
+    .hamburger { display: flex !important; }
+    .main { width: 100vw; }
+  }
+  .hamburger {
+    display: none; align-items: center; justify-content: center;
+    background: transparent; border: 1px solid var(--border);
+    color: var(--text-mid); border-radius: 4px;
+    width: 36px; height: 36px; cursor: pointer; font-size: 18px;
+    margin-right: 12px; flex-shrink: 0;
+  }
+  .hamburger:hover { border-color: var(--amber); color: var(--amber); }
+
   .sidebar-logo { padding: 0 20px 28px; font-family: 'Bebas Neue', cursive; font-size: 22px; letter-spacing: 2px; color: var(--amber); border-bottom: 1px solid var(--border); line-height: 1.2; }
   .sidebar-logo span { display: block; font-size: 11px; letter-spacing: 3px; color: var(--text-dim); font-family: 'IBM Plex Mono', monospace; margin-top: 4px; }
   .sidebar-nav { padding: 20px 0; flex: 1; }
@@ -26,68 +57,80 @@ const styles = `
   .sync-dot.syncing { background: var(--yellow); animation: pulse 1s infinite; }
   .sync-dot.error { background: var(--red); }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
-  .main { flex: 1; overflow-y: auto; background: var(--bg); }
-  .topbar { background: var(--bg2); border-bottom: 1px solid var(--border); padding: 16px 28px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; }
-  .topbar-title { font-family: 'Bebas Neue', cursive; font-size: 26px; letter-spacing: 2px; color: var(--text); }
+
+  .main { flex: 1; overflow-y: auto; background: var(--bg); min-width: 0; }
+  .topbar { background: var(--bg2); border-bottom: 1px solid var(--border); padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; }
+  .topbar-left { display: flex; align-items: center; flex: 1; min-width: 0; }
+  .topbar-title { font-family: 'Bebas Neue', cursive; font-size: 22px; letter-spacing: 2px; color: var(--text); white-space: nowrap; }
   .topbar-title span { color: var(--amber); }
-  .btn { padding: 8px 18px; border-radius: 4px; border: none; cursor: pointer; font-family: 'IBM Plex Sans', sans-serif; font-size: 13px; font-weight: 600; transition: all 0.15s; letter-spacing: 0.5px; }
+  .btn { padding: 8px 18px; border-radius: 4px; border: none; cursor: pointer; font-family: 'IBM Plex Sans', sans-serif; font-size: 13px; font-weight: 600; transition: all 0.15s; letter-spacing: 0.5px; white-space: nowrap; }
   .btn-amber { background: var(--amber); color: #000; }
   .btn-amber:hover { background: #fbbf24; }
   .btn-ghost { background: transparent; color: var(--text-mid); border: 1px solid var(--border); }
   .btn-ghost:hover { border-color: var(--amber); color: var(--amber); }
   .btn-sm { padding: 5px 12px; font-size: 12px; }
-  .content { padding: 28px; }
-  .projects-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 20px; }
-  .project-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; padding: 22px; cursor: pointer; transition: all 0.2s; position: relative; overflow: hidden; }
+  .content { padding: 20px; }
+  @media (max-width: 768px) {
+    .content { padding: 14px; }
+    .stats-bar { grid-template-columns: repeat(2, 1fr) !important; }
+    .projects-grid { grid-template-columns: 1fr !important; }
+    .form-grid { grid-template-columns: 1fr !important; }
+    .form-group.full { grid-column: 1 !important; }
+    .detail-meta { gap: 12px !important; }
+    .topbar-title { font-size: 18px; }
+  }
+
+  .projects-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+  .project-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; padding: 20px; cursor: pointer; transition: all 0.2s; position: relative; overflow: hidden; }
   .project-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
   .project-card.status-active::before { background: var(--green); }
   .project-card.status-planning::before { background: var(--steel); }
   .project-card.status-hold::before { background: var(--yellow); }
   .project-card.status-complete::before { background: var(--text-dim); }
   .project-card:hover { border-color: var(--amber); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
-  .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+  .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; gap: 8px; }
   .card-name { font-family: 'Bebas Neue', cursive; font-size: 20px; letter-spacing: 1px; color: var(--text); line-height: 1.2; }
   .card-client { font-size: 12px; color: var(--text-dim); margin-top: 2px; font-family: 'IBM Plex Mono', monospace; }
-  .status-badge { padding: 3px 10px; border-radius: 3px; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; font-family: 'IBM Plex Mono', monospace; white-space: nowrap; }
+  .status-badge { padding: 3px 10px; border-radius: 3px; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; font-family: 'IBM Plex Mono', monospace; white-space: nowrap; flex-shrink: 0; }
   .badge-active { background: rgba(52,211,153,0.15); color: var(--green); }
   .badge-planning { background: rgba(96,165,250,0.15); color: var(--steel); }
   .badge-hold { background: rgba(251,191,36,0.15); color: var(--yellow); }
   .badge-complete { background: rgba(100,116,139,0.15); color: var(--text-dim); }
-  .card-meta { display: flex; gap: 16px; margin: 14px 0; flex-wrap: wrap; }
+  .card-meta { display: flex; gap: 12px; margin: 12px 0; flex-wrap: wrap; }
   .meta-item { font-size: 11px; color: var(--text-dim); font-family: 'IBM Plex Mono', monospace; }
   .meta-item strong { display: block; color: var(--text-mid); margin-bottom: 2px; }
-  .progress-bar { height: 4px; background: var(--bg3); border-radius: 2px; margin-top: 14px; overflow: hidden; }
+  .progress-bar { height: 4px; background: var(--bg3); border-radius: 2px; margin-top: 12px; overflow: hidden; }
   .progress-fill { height: 100%; border-radius: 2px; background: var(--amber); transition: width 0.5s; }
   .progress-label { display: flex; justify-content: space-between; margin-top: 6px; font-size: 11px; color: var(--text-dim); font-family: 'IBM Plex Mono', monospace; }
   .back-btn { display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--text-dim); font-size: 13px; transition: color 0.15s; }
   .back-btn:hover { color: var(--amber); }
-  .detail-header { background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; padding: 24px; margin-bottom: 20px; }
-  .detail-title { font-family: 'Bebas Neue', cursive; font-size: 32px; letter-spacing: 2px; color: var(--text); }
-  .detail-meta { display: flex; gap: 24px; margin-top: 12px; flex-wrap: wrap; }
-  .tabs { display: flex; gap: 2px; background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; padding: 4px; margin-bottom: 20px; flex-wrap: wrap; }
-  .tab { padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 500; color: var(--text-dim); transition: all 0.15s; white-space: nowrap; }
+  .detail-header { background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; padding: 20px; margin-bottom: 16px; }
+  .detail-title { font-family: 'Bebas Neue', cursive; font-size: 28px; letter-spacing: 2px; color: var(--text); }
+  .detail-meta { display: flex; gap: 20px; margin-top: 12px; flex-wrap: wrap; }
+  .tabs { display: flex; gap: 2px; background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; padding: 4px; margin-bottom: 16px; flex-wrap: wrap; }
+  .tab { padding: 7px 13px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 500; color: var(--text-dim); transition: all 0.15s; white-space: nowrap; }
   .tab:hover { color: var(--text); }
   .tab.active { background: var(--amber); color: #000; font-weight: 700; }
   .timeline { position: relative; padding-left: 28px; }
   .timeline::before { content: ''; position: absolute; left: 8px; top: 8px; bottom: 8px; width: 2px; background: var(--border); }
-  .timeline-item { position: relative; margin-bottom: 24px; }
-  .timeline-dot { position: absolute; left: -24px; top: 4px; width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--border); background: var(--bg); transition: all 0.2s; }
+  .timeline-item { position: relative; margin-bottom: 20px; }
+  .timeline-dot { position: absolute; left: -24px; top: 4px; width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--border); background: var(--bg); transition: all 0.2s; cursor: pointer; }
   .timeline-dot.done { background: var(--green); border-color: var(--green); }
   .timeline-dot.active { background: var(--amber); border-color: var(--amber); box-shadow: 0 0 0 4px rgba(245,158,11,0.2); }
   .timeline-dot.upcoming { background: var(--bg3); border-color: var(--text-dim); }
-  .timeline-content { background: var(--bg2); border: 1px solid var(--border); border-radius: 5px; padding: 14px 16px; }
+  .timeline-content { background: var(--bg2); border: 1px solid var(--border); border-radius: 5px; padding: 12px 14px; }
   .timeline-name { font-weight: 600; font-size: 14px; color: var(--text); margin-bottom: 4px; }
   .timeline-date { font-size: 11px; font-family: 'IBM Plex Mono', monospace; color: var(--text-dim); }
   .timeline-notes { font-size: 12px; color: var(--text-mid); margin-top: 6px; }
   .add-form { background: var(--bg2); border: 1px solid var(--border); border-radius: 5px; padding: 16px; margin-top: 16px; }
-  .table-wrapper { overflow-x: auto; }
-  table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th { text-align: left; padding: 10px 14px; font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--text-dim); border-bottom: 1px solid var(--border); font-weight: 500; }
-  td { padding: 12px 14px; border-bottom: 1px solid rgba(42,51,71,0.5); color: var(--text-mid); }
+  .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 500px; }
+  th { text-align: left; padding: 10px 12px; font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--text-dim); border-bottom: 1px solid var(--border); font-weight: 500; }
+  td { padding: 10px 12px; border-bottom: 1px solid rgba(42,51,71,0.5); color: var(--text-mid); }
   tr:last-child td { border-bottom: none; }
   tr:hover td { background: rgba(245,158,11,0.03); color: var(--text); }
-  .note-item { background: var(--bg2); border: 1px solid var(--border); border-radius: 5px; padding: 16px; margin-bottom: 12px; }
-  .note-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .note-item { background: var(--bg2); border: 1px solid var(--border); border-radius: 5px; padding: 14px; margin-bottom: 10px; }
+  .note-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 6px; }
   .note-tag { padding: 2px 8px; border-radius: 3px; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; font-family: 'IBM Plex Mono', monospace; }
   .tag-client { background: rgba(96,165,250,0.15); color: var(--steel); }
   .tag-site { background: rgba(52,211,153,0.15); color: var(--green); }
@@ -95,31 +138,31 @@ const styles = `
   .tag-vendor { background: rgba(248,113,113,0.15); color: var(--red); }
   .note-time { font-size: 11px; font-family: 'IBM Plex Mono', monospace; color: var(--text-dim); }
   .note-text { font-size: 13px; color: var(--text-mid); line-height: 1.6; }
-  .check-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; background: var(--bg2); border: 1px solid var(--border); border-radius: 5px; margin-bottom: 8px; transition: all 0.15s; }
+  .check-item { display: flex; align-items: flex-start; gap: 10px; padding: 12px; background: var(--bg2); border: 1px solid var(--border); border-radius: 5px; margin-bottom: 8px; }
   .check-item.done { opacity: 0.5; }
   .check-item.done .check-text { text-decoration: line-through; color: var(--text-dim); }
   .custom-check { width: 18px; height: 18px; min-width: 18px; border: 2px solid var(--border); border-radius: 3px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; margin-top: 1px; }
   .custom-check.checked { background: var(--amber); border-color: var(--amber); }
   .check-text { font-size: 13px; color: var(--text); flex: 1; }
-  .check-meta { display: flex; gap: 10px; margin-top: 4px; align-items: center; }
+  .check-meta { display: flex; gap: 8px; margin-top: 4px; align-items: center; flex-wrap: wrap; }
   .priority-badge { padding: 1px 7px; border-radius: 2px; font-size: 10px; font-weight: 700; letter-spacing: 1px; font-family: 'IBM Plex Mono', monospace; }
   .priority-high { background: rgba(248,113,113,0.15); color: var(--red); }
   .priority-medium { background: rgba(251,191,36,0.15); color: var(--yellow); }
   .priority-low { background: rgba(100,116,139,0.15); color: var(--text-dim); }
   .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
-  .cal-header { background: var(--bg3); padding: 10px; text-align: center; font-size: 11px; font-family: 'IBM Plex Mono', monospace; letter-spacing: 1px; text-transform: uppercase; color: var(--text-dim); font-weight: 500; }
-  .cal-day { background: var(--bg2); padding: 8px; min-height: 80px; }
+  .cal-header { background: var(--bg3); padding: 8px 4px; text-align: center; font-size: 10px; font-family: 'IBM Plex Mono', monospace; letter-spacing: 1px; text-transform: uppercase; color: var(--text-dim); font-weight: 500; }
+  .cal-day { background: var(--bg2); padding: 6px; min-height: 70px; }
   .cal-day.other-month { background: var(--bg); }
   .cal-day.today { background: rgba(245,158,11,0.06); }
-  .cal-day-num { font-size: 12px; font-family: 'IBM Plex Mono', monospace; color: var(--text-dim); margin-bottom: 4px; }
+  .cal-day-num { font-size: 11px; font-family: 'IBM Plex Mono', monospace; color: var(--text-dim); margin-bottom: 3px; }
   .cal-day.today .cal-day-num { color: var(--amber); font-weight: 700; }
-  .cal-event { font-size: 10px; padding: 2px 5px; border-radius: 2px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; font-weight: 500; }
-  .cal-nav { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
-  .cal-month { font-family: 'Bebas Neue', cursive; font-size: 28px; letter-spacing: 2px; }
-  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 20px; }
-  .modal { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; width: 100%; max-width: 560px; max-height: 85vh; overflow-y: auto; padding: 28px; }
-  .modal-title { font-family: 'Bebas Neue', cursive; font-size: 24px; letter-spacing: 2px; color: var(--amber); margin-bottom: 24px; }
-  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .cal-event { font-size: 9px; padding: 2px 4px; border-radius: 2px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; font-weight: 500; }
+  .cal-nav { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
+  .cal-month { font-family: 'Bebas Neue', cursive; font-size: 26px; letter-spacing: 2px; }
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 16px; }
+  .modal { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto; padding: 24px; }
+  .modal-title { font-family: 'Bebas Neue', cursive; font-size: 24px; letter-spacing: 2px; color: var(--amber); margin-bottom: 20px; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
   .form-group { display: flex; flex-direction: column; gap: 6px; }
   .form-group.full { grid-column: 1 / -1; }
   label { font-size: 11px; font-family: 'IBM Plex Mono', monospace; letter-spacing: 1px; text-transform: uppercase; color: var(--text-dim); font-weight: 500; }
@@ -127,15 +170,15 @@ const styles = `
   input:focus, select:focus, textarea:focus { border-color: var(--amber); }
   textarea { resize: vertical; min-height: 80px; }
   select option { background: var(--bg3); }
-  .form-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
-  .stats-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 28px; }
-  .stat-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; padding: 18px 20px; }
-  .stat-value { font-family: 'Bebas Neue', cursive; font-size: 36px; letter-spacing: 1px; color: var(--amber); line-height: 1; }
-  .stat-label { font-size: 11px; font-family: 'IBM Plex Mono', monospace; color: var(--text-dim); margin-top: 4px; letter-spacing: 1px; text-transform: uppercase; }
-  .section-title { font-family: 'Bebas Neue', cursive; font-size: 18px; letter-spacing: 2px; color: var(--text-dim); margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
+  .form-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+  .stats-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
+  .stat-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; padding: 16px; }
+  .stat-value { font-family: 'Bebas Neue', cursive; font-size: 32px; letter-spacing: 1px; color: var(--amber); line-height: 1; }
+  .stat-label { font-size: 10px; font-family: 'IBM Plex Mono', monospace; color: var(--text-dim); margin-top: 4px; letter-spacing: 1px; text-transform: uppercase; }
+  .section-title { font-family: 'Bebas Neue', cursive; font-size: 16px; letter-spacing: 2px; color: var(--text-dim); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
   .section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
-  .empty { text-align: center; padding: 40px; color: var(--text-dim); font-size: 13px; font-family: 'IBM Plex Mono', monospace; }
-  .input-row { display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+  .empty { text-align: center; padding: 32px; color: var(--text-dim); font-size: 13px; font-family: 'IBM Plex Mono', monospace; }
+  .input-row { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
   .input-row input, .input-row select { flex: 1; min-width: 120px; }
   .contract-value { font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: var(--green); }
   .loading-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background: var(--bg); gap: 16px; }
@@ -143,13 +186,12 @@ const styles = `
   .loading-sub { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--text-dim); letter-spacing: 2px; }
   .spinner { width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--amber); border-radius: 50%; animation: spin 0.8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
-  .toast { position: fixed; bottom: 24px; right: 24px; background: var(--bg2); border: 1px solid var(--border); border-left: 3px solid var(--green); padding: 12px 18px; border-radius: 5px; font-size: 12px; font-family: 'IBM Plex Mono', monospace; color: var(--text-mid); z-index: 200; animation: slideIn 0.2s ease; }
+  .toast { position: fixed; bottom: 20px; right: 20px; left: 20px; max-width: 360px; margin: 0 auto; background: var(--bg2); border: 1px solid var(--border); border-left: 3px solid var(--green); padding: 12px 16px; border-radius: 5px; font-size: 12px; font-family: 'IBM Plex Mono', monospace; color: var(--text-mid); z-index: 200; animation: slideIn 0.2s ease; }
   .toast.error { border-left-color: var(--red); }
-  @keyframes slideIn { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  @keyframes slideIn { from { transform: translateY(8px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
   ::-webkit-scrollbar-track { background: var(--bg); }
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-  ::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
 `;
 
 const SEED_PROJECTS = [
@@ -158,28 +200,26 @@ const SEED_PROJECTS = [
     address: "4820 Commerce Blvd, Milwaukee, WI", pm: "Sandra Kowalski",
     contract: 1850000, status: "active", start: "2026-01-15", end: "2026-08-30", progress: 38,
     milestones: [
-      { id: "m1", name: "Project Kickoff", date: "2026-01-15", status: "done", notes: "All stakeholders attended. Scope confirmed." },
-      { id: "m2", name: "Demolition Complete", date: "2026-02-20", status: "done", notes: "Floors 2–4 cleared." },
-      { id: "m3", name: "MEP Rough-In", date: "2026-04-10", status: "active", notes: "Electrical 60% complete, plumbing on schedule." },
+      { id: "m1", name: "Project Kickoff", date: "2026-01-15", status: "done", notes: "All stakeholders attended." },
+      { id: "m2", name: "Demolition Complete", date: "2026-02-20", status: "done", notes: "Floors 2-4 cleared." },
+      { id: "m3", name: "MEP Rough-In", date: "2026-04-10", status: "active", notes: "Electrical 60% complete." },
       { id: "m4", name: "Drywall & Insulation", date: "2026-05-22", status: "upcoming", notes: "" },
       { id: "m5", name: "Final Inspection", date: "2026-08-15", status: "upcoming", notes: "" },
     ],
     pos: [
       { id: "po1", po: "PO-2026-001", vendor: "Apex Electrical Supply", desc: "Panel boards & conduit", amount: 48200, date: "2026-01-20", status: "Received" },
-      { id: "po2", po: "PO-2026-004", vendor: "Midwest Drywall Co.", desc: "5/8\" type-X drywall — 12,000 sheets", amount: 31500, date: "2026-02-05", status: "Approved" },
-      { id: "po3", po: "PO-2026-009", vendor: "ProTech HVAC", desc: "Ductwork fabrication & equipment", amount: 124000, date: "2026-02-18", status: "Pending" },
+      { id: "po2", po: "PO-2026-004", vendor: "Midwest Drywall Co.", desc: "5/8 type-X drywall", amount: 31500, date: "2026-02-05", status: "Approved" },
+      { id: "po3", po: "PO-2026-009", vendor: "ProTech HVAC", desc: "Ductwork & equipment", amount: 124000, date: "2026-02-18", status: "Pending" },
     ],
     notes: [
-      { id: "n1", tag: "client", text: "Client confirmed upgraded lighting package in executive suites. Will issue change order CO-003.", date: "2026-02-28 14:32" },
-      { id: "n2", tag: "site", text: "Water intrusion at NE stairwell. Roofing subcontractor notified. Repair scheduled March 6.", date: "2026-02-25 09:15" },
-      { id: "n3", tag: "internal", text: "MEP subcontractor is 4 days behind. Recovery plan: adding weekend crew.", date: "2026-03-01 16:00" },
+      { id: "n1", tag: "client", text: "Client confirmed upgraded lighting package. Will issue change order CO-003.", date: "2026-02-28 14:32" },
+      { id: "n2", tag: "site", text: "Water intrusion at NE stairwell. Roofing sub notified. Repair scheduled March 6.", date: "2026-02-25 09:15" },
     ],
     checklist: [
       { id: "c1", text: "Execute subcontractor agreements", done: true, due: "2026-01-20", priority: "high" },
       { id: "c2", text: "Submit building permit application", done: true, due: "2026-01-18", priority: "high" },
       { id: "c3", text: "Finalize MEP coordination drawings", done: false, due: "2026-03-15", priority: "high" },
       { id: "c4", text: "Order long-lead HVAC equipment", done: false, due: "2026-03-10", priority: "medium" },
-      { id: "c5", text: "Schedule owner walkthrough — Milestone 3", done: false, due: "2026-04-12", priority: "medium" },
     ],
   },
   {
@@ -193,15 +233,14 @@ const SEED_PROJECTS = [
       { id: "m4", name: "Tenant Handover", date: "2026-06-10", status: "upcoming", notes: "" },
     ],
     pos: [
-      { id: "po1", po: "PO-2026-011", vendor: "Great Lakes Steel", desc: "Structural steel — storefront framing", amount: 18400, date: "2026-02-15", status: "Approved" },
+      { id: "po1", po: "PO-2026-011", vendor: "Great Lakes Steel", desc: "Structural steel framing", amount: 18400, date: "2026-02-15", status: "Approved" },
     ],
     notes: [
-      { id: "n1", tag: "client", text: "Shoreline wants polished concrete floors instead of VCT tile. Cost delta approx. +$9,200.", date: "2026-02-22 11:45" },
-      { id: "n2", tag: "vendor", text: "Glass storefront: 8-week lead time from Vitro. Must order by March 10.", date: "2026-02-27 10:00" },
+      { id: "n1", tag: "client", text: "Client wants polished concrete floors instead of VCT tile. Cost delta approx +$9,200.", date: "2026-02-22 11:45" },
     ],
     checklist: [
       { id: "c1", text: "Issue Notice to Proceed to GC", done: false, due: "2026-03-01", priority: "high" },
-      { id: "c2", text: "Confirm glass system order deadline with Vitro", done: false, due: "2026-03-08", priority: "high" },
+      { id: "c2", text: "Confirm glass system order deadline", done: false, due: "2026-03-08", priority: "high" },
       { id: "c3", text: "Distribute site safety plan", done: true, due: "2026-02-28", priority: "medium" },
     ],
   },
@@ -212,37 +251,35 @@ const SEED_PROJECTS = [
     milestones: [
       { id: "m1", name: "Owner Financing Confirmed", date: "2026-03-15", status: "upcoming", notes: "Pending bank commitment letter." },
       { id: "m2", name: "Preconstruction Meeting", date: "2026-04-01", status: "upcoming", notes: "" },
-      { id: "m3", name: "Foundation Pour", date: "2026-05-10", status: "upcoming", notes: "" },
     ],
     pos: [],
     notes: [
       { id: "n1", tag: "internal", text: "Project on hold pending owner financing. Expected LOI by March 15.", date: "2026-02-20 13:00" },
     ],
     checklist: [
-      { id: "c1", text: "Confirm financing — obtain commitment letter", done: false, due: "2026-03-15", priority: "high" },
+      { id: "c1", text: "Confirm financing - obtain commitment letter", done: false, due: "2026-03-15", priority: "high" },
       { id: "c2", text: "Finalize structural drawings with engineer", done: false, due: "2026-03-20", priority: "medium" },
     ],
   },
 ];
 
 const PROJECT_COLORS = ["#f59e0b","#60a5fa","#34d399","#f87171","#a78bfa","#fb923c"];
-const STORAGE_KEY = "ironframe-projects-v1";
+const STORAGE_KEY = "hollywood-projects-v1";
 const POLL_INTERVAL = 5000;
 
-const fmt = (d) => d ? new Date(d + "T00:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}) : "—";
-const fmtMoney = (n) => n ? "$" + Number(n).toLocaleString() : "—";
+const fmt = (d) => d ? new Date(d + "T00:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}) : "---";
+const fmtMoney = (n) => n ? "$" + Number(n).toLocaleString() : "---";
 const statusLabel = { active:"In Progress", planning:"Planning", hold:"On Hold", complete:"Complete" };
 const badgeClass = { active:"badge-active", planning:"badge-planning", hold:"badge-hold", complete:"badge-complete" };
 const statusCardClass = { active:"status-active", planning:"status-planning", hold:"status-hold", complete:"status-complete" };
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const DAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 
-// ── Storage helpers ───────────────────────────────────────────────────────────
 async function loadFromStorage() {
   try {
     const result = await window.storage.get(STORAGE_KEY, true);
     if (result && result.value) return JSON.parse(result.value);
-  } catch {}
+  } catch(e) {}
   return null;
 }
 
@@ -250,12 +287,11 @@ async function saveToStorage(projects) {
   try {
     await window.storage.set(STORAGE_KEY, JSON.stringify(projects), true);
     return true;
-  } catch {
+  } catch(e) {
     return false;
   }
 }
 
-// ── APP ───────────────────────────────────────────────────────────────────────
 export default function App() {
   const [projects, setProjects] = useState(null);
   const [view, setView] = useState("dashboard");
@@ -267,12 +303,11 @@ export default function App() {
   const [lastSaved, setLastSaved] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const showToast = (msg, type = "success") => {
-    setToast({ msg, type });
+  const showToast = (msg, type) => {
+    setToast({ msg, type: type || "success" });
     setTimeout(() => setToast(null), 3000);
   };
 
-  // Initial load
   useEffect(() => {
     (async () => {
       setSyncStatus("syncing");
@@ -289,7 +324,6 @@ export default function App() {
     })();
   }, []);
 
-  // Poll for remote changes every 5s
   useEffect(() => {
     if (!projects) return;
     const interval = setInterval(async () => {
@@ -299,53 +333,51 @@ export default function App() {
         if (remote !== lastSaved) {
           setProjects(data);
           setLastSaved(remote);
-          showToast("🔄 Updated by a team member");
+          showToast("Updated by a team member");
         }
       }
     }, POLL_INTERVAL);
     return () => clearInterval(interval);
   }, [projects, lastSaved]);
 
-  // Save whenever projects change
-  const persistProjects = useCallback(async (newProjects) => {
-    setSyncStatus("syncing");
-    setProjects(newProjects);
-    const ok = await saveToStorage(newProjects);
-    setLastSaved(JSON.stringify(newProjects));
-    setSyncStatus(ok ? "synced" : "error");
-    if (!ok) showToast("Save failed — check connection", "error");
-  }, []);
-
   const updateProject = useCallback((id, updates) => {
     setProjects(ps => {
-      const next = ps.map(p => p.id === id ? { ...p, ...updates } : p);
+      const next = ps.map(p => p.id === id ? Object.assign({}, p, updates) : p);
+      setSyncStatus("syncing");
       saveToStorage(next).then(ok => {
         setLastSaved(JSON.stringify(next));
         setSyncStatus(ok ? "synced" : "error");
       });
-      setSyncStatus("syncing");
       return next;
     });
   }, []);
 
-  const selectedProject = projects?.find(p => p.id === selectedId);
+  const selectedProject = projects ? projects.find(function(p) { return p.id === selectedId; }) : null;
 
   const saveProject = async (data) => {
-    let next;
+    var next;
     if (editingProject) {
-      next = projects.map(p => p.id === editingProject.id ? { ...p, ...data } : p);
+      next = projects.map(p => p.id === editingProject.id ? Object.assign({}, p, data) : p);
     } else {
-      const newP = { ...data, id: "p" + Date.now(), milestones:[], pos:[], notes:[], checklist:[], progress: data.progress || 0 };
-      next = [...projects, newP];
+      var newP = Object.assign({}, data, { id: "p" + Date.now(), milestones:[], pos:[], notes:[], checklist:[], progress: data.progress || 0 });
+      next = projects.concat([newP]);
     }
-    await persistProjects(next);
-    showToast(editingProject ? "Project updated ✓" : "Project created ✓");
+    setSyncStatus("syncing");
+    var ok = await saveToStorage(next);
+    setProjects(next);
+    setLastSaved(JSON.stringify(next));
+    setSyncStatus(ok ? "synced" : "error");
+    showToast(editingProject ? "Project updated" : "Project created");
     setShowModal(false);
   };
 
   const deleteProject = async (id) => {
-    const next = projects.filter(p => p.id !== id);
-    await persistProjects(next);
+    var next = projects.filter(p => p.id !== id);
+    setSyncStatus("syncing");
+    var ok = await saveToStorage(next);
+    setProjects(next);
+    setLastSaved(JSON.stringify(next));
+    setSyncStatus(ok ? "synced" : "error");
     showToast("Project deleted");
     setView("dashboard");
   };
@@ -367,120 +399,150 @@ export default function App() {
     <>
       <style>{styles}</style>
       <div className="app">
-        <Sidebar view={view} setView={setView} setSelectedId={setSelectedId} syncStatus={syncStatus} open={sidebarOpen} setOpen={setSidebarOpen} />
+        <div className={"sidebar-overlay" + (sidebarOpen ? " open" : "")} onClick={() => setSidebarOpen(false)} />
+        <div className={"sidebar" + (sidebarOpen ? " open" : "")}>
+          <div className="sidebar-logo">HOLLYWOOD<span>PROPERTY SOLUTIONS</span></div>
+          <nav className="sidebar-nav">
+            <div
+              className={"nav-item" + (view === "dashboard" || view === "detail" ? " active" : "")}
+              onClick={() => { setView("dashboard"); setSelectedId(null); setSidebarOpen(false); }}
+            >
+              <span style={{fontSize:15}}>&#9632;</span>All Projects
+            </div>
+            <div
+              className={"nav-item" + (view === "calendar" ? " active" : "")}
+              onClick={() => { setView("calendar"); setSidebarOpen(false); }}
+            >
+              <span style={{fontSize:15}}>&#128197;</span>Calendar
+            </div>
+          </nav>
+          <div className="sync-status" style={{color: syncStatus === "synced" ? "var(--green)" : syncStatus === "syncing" ? "var(--yellow)" : "var(--red)"}}>
+            <div className={"sync-dot " + syncStatus} />
+            {syncStatus === "synced" ? "SYNCED" : syncStatus === "syncing" ? "SAVING..." : "SYNC ERROR"}
+          </div>
+          <div style={{padding:"4px 20px 16px",fontSize:10,color:"var(--text-dim)",fontFamily:"'IBM Plex Mono',monospace",lineHeight:1.5}}>
+            Shared across<br />all team members
+          </div>
+        </div>
+
         <div className="main">
-          {view === "dashboard" && <Dashboard projects={projects} onOpen={id => { setSelectedId(id); setView("detail"); }} onNew={() => { setEditingProject(null); setShowModal(true); }} />}
-          {view === "detail" && selectedProject && (
-            <DetailView project={selectedProject} onBack={() => setView("dashboard")} onUpdate={(u) => updateProject(selectedProject.id, u)} onEdit={() => { setEditingProject(selectedProject); setShowModal(true); }} onDelete={() => deleteProject(selectedProject.id)} />
+          {view === "dashboard" && (
+            <Dashboard
+              projects={projects}
+              onOpen={function(id) { setSelectedId(id); setView("detail"); }}
+              onNew={function() { setEditingProject(null); setShowModal(true); }}
+              sidebarOpen={sidebarOpen}
+              setSidebarOpen={setSidebarOpen}
+            />
           )}
-          {view === "calendar" && <CalendarView projects={projects} onOpen={id => { setSelectedId(id); setView("detail"); }} />}
+          {view === "detail" && selectedProject && (
+            <DetailView
+              project={selectedProject}
+              onBack={() => setView("dashboard")}
+              onUpdate={(u) => updateProject(selectedProject.id, u)}
+              onEdit={() => { setEditingProject(selectedProject); setShowModal(true); }}
+              onDelete={() => deleteProject(selectedProject.id)}
+              setSidebarOpen={setSidebarOpen}
+            />
+          )}
+          {view === "calendar" && (
+            <CalendarView
+              projects={projects}
+              onOpen={function(id) { setSelectedId(id); setView("detail"); }}
+              setSidebarOpen={setSidebarOpen}
+            />
+          )}
         </div>
       </div>
       {showModal && <ProjectModal project={editingProject} onSave={saveProject} onClose={() => setShowModal(false)} />}
-      {toast && <div className={`toast ${toast.type === "error" ? "error" : ""}`}>{toast.msg}</div>}
+      {toast && <div className={"toast" + (toast.type === "error" ? " error" : "")}>{toast.msg}</div>}
     </>
   );
 }
 
-// ── SIDEBAR ───────────────────────────────────────────────────────────────────
-function Sidebar({ view, setView, setSelectedId, syncStatus, open, setOpen }) {
-  const syncLabel = { synced:"SYNCED", syncing:"SAVING...", error:"SYNC ERROR" };
-  const syncColor = { synced:"var(--green)", syncing:"var(--yellow)", error:"var(--red)" };
+function HamburgerBtn({ setSidebarOpen }) {
   return (
-    <>
-      {/* Mobile overlay */}
-      {open && <div onClick={() => setOpen(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:40}} />}
-      <div className="sidebar" style={{
-        position: window.innerWidth < 768 ? "fixed" : "relative",
-        left: window.innerWidth < 768 ? (open ? "0" : "-220px") : "0",
-        zIndex: 50, transition: "left 0.25s ease",
-        height: "100vh"
-      }}>
-        <div className="sidebar-logo">HOLLYWOOD<span>PROPERTY SOLUTIONS</span></div>
-        <nav className="sidebar-nav">
-          {[{id:"dashboard",icon:"⬛",label:"All Projects"},{id:"calendar",icon:"📅",label:"Calendar"}].map(n => (
-            <div key={n.id} className={`nav-item ${view===n.id||(view==="detail"&&n.id==="dashboard")?"active":""}`}
-              onClick={() => { setView(n.id); if(n.id==="dashboard") setSelectedId(null); setOpen(false); }}>
-              <span style={{fontSize:15}}>{n.icon}</span>{n.label}
-            </div>
-          ))}
-        </nav>
-        <div className="sync-status" style={{color:syncColor[syncStatus]}}>
-          <div className={`sync-dot ${syncStatus}`} />
-          {syncLabel[syncStatus]}
-        </div>
-        <div style={{padding:"4px 20px 16px",fontSize:10,color:"var(--text-dim)",fontFamily:"'IBM Plex Mono',monospace",lineHeight:1.5}}>
-          Shared across<br />all team members
-        </div>
-      </div>
-    </>
+    <button className="hamburger" onClick={() => setSidebarOpen(function(o) { return !o; })}>
+      &#9776;
+    </button>
   );
 }
-```
 
-// ── DASHBOARD ────────────────────────────────────────────────────────────────
-function Dashboard({ projects, onOpen, onNew }) {
-  const active = projects.filter(p => p.status === "active").length;
-  const totalContract = projects.reduce((s, p) => s + (Number(p.contract) || 0), 0);
-  const totalTasks = projects.reduce((s, p) => s + p.checklist.filter(c => !c.done).length, 0);
+function Dashboard({ projects, onOpen, onNew, setSidebarOpen }) {
+  var active = projects.filter(p => p.status === "active").length;
+  var totalContract = projects.reduce(function(s, p) { return s + (Number(p.contract) || 0); }, 0);
+  var totalTasks = projects.reduce(function(s, p) { return s + p.checklist.filter(c => !c.done).length; }, 0);
   return (
     <>
       <div className="topbar">
-        <button onClick={() => setSidebarOpen(o => !o)} className="btn btn-ghost btn-sm" style={{display: window.innerWidth < 768 ? "block" : "none", marginRight:12}}>☰</button>
-        <div className="topbar-title">PROJECT <span>DASHBOARD</span></div>
+        <div className="topbar-left">
+          <HamburgerBtn setSidebarOpen={setSidebarOpen} />
+          <div className="topbar-title">PROJECT <span>DASHBOARD</span></div>
+        </div>
         <button className="btn btn-amber" onClick={onNew}>+ New Project</button>
       </div>
       <div className="content">
         <div className="stats-bar">
           <div className="stat-card"><div className="stat-value">{projects.length}</div><div className="stat-label">Total Projects</div></div>
           <div className="stat-card"><div className="stat-value">{active}</div><div className="stat-label">Active</div></div>
-          <div className="stat-card"><div className="stat-value" style={{fontSize:26}}>{fmtMoney(totalContract)}</div><div className="stat-label">Total Contract Value</div></div>
+          <div className="stat-card"><div className="stat-value" style={{fontSize:22}}>{fmtMoney(totalContract)}</div><div className="stat-label">Contract Value</div></div>
           <div className="stat-card"><div className="stat-value">{totalTasks}</div><div className="stat-label">Open Tasks</div></div>
         </div>
         <div className="section-title">Projects</div>
         <div className="projects-grid">
-          {projects.map((p, i) => (
-            <div key={p.id} className={`project-card ${statusCardClass[p.status]}`} onClick={() => onOpen(p.id)}>
-              <div className="card-header">
-                <div><div className="card-name">{p.name}</div><div className="card-client">{p.client}</div></div>
-                <span className={`status-badge ${badgeClass[p.status]}`}>{statusLabel[p.status]}</span>
+          {projects.map(function(p) {
+            return (
+              <div key={p.id} className={"project-card " + statusCardClass[p.status]} onClick={() => onOpen(p.id)}>
+                <div className="card-header">
+                  <div>
+                    <div className="card-name">{p.name}</div>
+                    <div className="card-client">{p.client}</div>
+                  </div>
+                  <span className={"status-badge " + badgeClass[p.status]}>{statusLabel[p.status]}</span>
+                </div>
+                <div className="card-meta">
+                  <div className="meta-item"><strong>PM</strong>{p.pm}</div>
+                  <div className="meta-item"><strong>Contract</strong><span className="contract-value">{fmtMoney(p.contract)}</span></div>
+                  <div className="meta-item"><strong>End Date</strong>{fmt(p.end)}</div>
+                </div>
+                <div className="progress-bar"><div className="progress-fill" style={{width: p.progress + "%"}} /></div>
+                <div className="progress-label"><span>Progress</span><span>{p.progress}%</span></div>
               </div>
-              <div className="card-meta">
-                <div className="meta-item"><strong>PM</strong>{p.pm}</div>
-                <div className="meta-item"><strong>Contract</strong><span className="contract-value">{fmtMoney(p.contract)}</span></div>
-                <div className="meta-item"><strong>End Date</strong>{fmt(p.end)}</div>
-              </div>
-              <div className="progress-bar"><div className="progress-fill" style={{width: p.progress + "%"}} /></div>
-              <div className="progress-label"><span>Progress</span><span>{p.progress}%</span></div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </>
   );
 }
 
-// ── DETAIL VIEW ───────────────────────────────────────────────────────────────
-function DetailView({ project, onBack, onUpdate, onEdit, onDelete }) {
+function DetailView({ project, onBack, onUpdate, onEdit, onDelete, setSidebarOpen }) {
   const [tab, setTab] = useState("timeline");
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const tabs = ["timeline","purchase orders","notes","checklist"];
+  var tabs = ["timeline","purchase orders","notes","checklist"];
   return (
     <>
       <div className="topbar">
-        <button onClick={() => setSidebarOpen(o => !o)} className="btn btn-ghost btn-sm" style={{display: window.innerWidth < 768 ? "block" : "none", marginRight:12}}>☰</button>
-        <div className="back-btn" onClick={onBack}>← Back to Projects</div>
-        <div style={{display:"flex", gap:8}}>
-          <button className="btn btn-ghost btn-sm" onClick={onEdit}>Edit Project</button>
+        <div className="topbar-left">
+          <HamburgerBtn setSidebarOpen={setSidebarOpen} />
+          <div className="back-btn" onClick={onBack}>&#8592; Back</div>
+        </div>
+        <div style={{display:"flex", gap:6, flexWrap:"wrap"}}>
+          <button className="btn btn-ghost btn-sm" onClick={onEdit}>Edit</button>
           {confirmDelete
-            ? <><button className="btn btn-sm" style={{background:"var(--red)",color:"#fff"}} onClick={onDelete}>Confirm Delete</button><button className="btn btn-ghost btn-sm" onClick={() => setConfirmDelete(false)}>Cancel</button></>
-            : <button className="btn btn-ghost btn-sm" style={{color:"var(--red)", borderColor:"var(--red)"}} onClick={() => setConfirmDelete(true)}>Delete</button>
+            ? (
+              <>
+                <button className="btn btn-sm" style={{background:"var(--red)",color:"#fff",border:"none"}} onClick={onDelete}>Confirm</button>
+                <button className="btn btn-ghost btn-sm" onClick={() => setConfirmDelete(false)}>Cancel</button>
+              </>
+            )
+            : <button className="btn btn-ghost btn-sm" style={{color:"var(--red)",borderColor:"var(--red)"}} onClick={() => setConfirmDelete(true)}>Delete</button>
           }
         </div>
       </div>
       <div className="content">
         <div className="detail-header">
-          <div style={{display:"flex", justifyContent:"space-between", alignItems:"flex-start", flexWrap:"wrap", gap:12}}>
+          <div style={{display:"flex", justifyContent:"space-between", alignItems:"flex-start", flexWrap:"wrap", gap:10}}>
             <div>
               <div className="detail-title">{project.name}</div>
               <div className="detail-meta">
@@ -492,17 +554,19 @@ function DetailView({ project, onBack, onUpdate, onEdit, onDelete }) {
                 <div className="meta-item"><strong>End</strong>{fmt(project.end)}</div>
               </div>
             </div>
-            <div style={{display:"flex", alignItems:"center", gap:12}}>
-              <span className={`status-badge ${badgeClass[project.status]}`}>{statusLabel[project.status]}</span>
+            <div style={{display:"flex", alignItems:"center", gap:10}}>
+              <span className={"status-badge " + badgeClass[project.status]}>{statusLabel[project.status]}</span>
               <div style={{textAlign:"right"}}>
-                <div style={{fontSize:24, fontFamily:"'Bebas Neue', cursive", color:"var(--amber)"}}>{project.progress}%</div>
-                <div style={{fontSize:11, color:"var(--text-dim)", fontFamily:"'IBM Plex Mono', monospace"}}>COMPLETE</div>
+                <div style={{fontSize:22,fontFamily:"'Bebas Neue',cursive",color:"var(--amber)"}}>{project.progress}%</div>
+                <div style={{fontSize:10,color:"var(--text-dim)",fontFamily:"'IBM Plex Mono',monospace"}}>COMPLETE</div>
               </div>
             </div>
           </div>
-          <div className="progress-bar" style={{marginTop:16, height:6}}><div className="progress-fill" style={{width: project.progress + "%"}} /></div>
+          <div className="progress-bar" style={{marginTop:14,height:5}}><div className="progress-fill" style={{width: project.progress + "%"}} /></div>
         </div>
-        <div className="tabs">{tabs.map(t => <div key={t} className={`tab ${tab===t?"active":""}`} onClick={() => setTab(t)}>{t.toUpperCase()}</div>)}</div>
+        <div className="tabs">
+          {tabs.map(t => <div key={t} className={"tab" + (tab === t ? " active" : "")} onClick={() => setTab(t)}>{t.toUpperCase()}</div>)}
+        </div>
         {tab === "timeline" && <TimelineTab project={project} onUpdate={onUpdate} />}
         {tab === "purchase orders" && <POTab project={project} onUpdate={onUpdate} />}
         {tab === "notes" && <NotesTab project={project} onUpdate={onUpdate} />}
@@ -512,148 +576,157 @@ function DetailView({ project, onBack, onUpdate, onEdit, onDelete }) {
   );
 }
 
-// ── TIMELINE ─────────────────────────────────────────────────────────────────
 function TimelineTab({ project, onUpdate }) {
   const [form, setForm] = useState({ name:"", date:"", notes:"" });
   const [adding, setAdding] = useState(false);
   const add = () => {
     if (!form.name || !form.date) return;
-    const m = { id: "m"+Date.now(), name:form.name, date:form.date, status:"upcoming", notes:form.notes };
-    const sorted = [...project.milestones, m].sort((a,b) => a.date.localeCompare(b.date));
+    var m = { id: "m"+Date.now(), name:form.name, date:form.date, status:"upcoming", notes:form.notes };
+    var sorted = project.milestones.concat([m]).sort(function(a,b) { return a.date.localeCompare(b.date); });
     onUpdate({ milestones: sorted });
-    setForm({ name:"", date:"", notes:"" }); setAdding(false);
+    setForm({ name:"", date:"", notes:"" });
+    setAdding(false);
   };
   const cycle = (id) => {
-    const c = { done:"active", active:"upcoming", upcoming:"done" };
-    onUpdate({ milestones: project.milestones.map(m => m.id===id ? {...m, status: c[m.status]} : m) });
+    var next = { done:"active", active:"upcoming", upcoming:"done" };
+    onUpdate({ milestones: project.milestones.map(m => m.id===id ? Object.assign({},m,{status:next[m.status]}) : m) });
   };
   const remove = (id) => onUpdate({ milestones: project.milestones.filter(m => m.id!==id) });
+  var statusColor = { done:"var(--green)", active:"var(--amber)", upcoming:"var(--text-dim)" };
   return (
     <div>
       <div className="section-title">Milestones</div>
       {project.milestones.length === 0 && <div className="empty">No milestones yet.</div>}
       <div className="timeline">
-        {project.milestones.map(m => (
-          <div key={m.id} className="timeline-item">
-            <div className={`timeline-dot ${m.status}`} onClick={() => cycle(m.id)} style={{cursor:"pointer"}} title="Click to cycle status" />
-            <div className="timeline-content">
-              <div style={{display:"flex", justifyContent:"space-between"}}>
-                <div>
-                  <div className="timeline-name">{m.name}</div>
-                  <div className="timeline-date">{fmt(m.date)} · <span style={{color: m.status==="done"?"var(--green)":m.status==="active"?"var(--amber)":"var(--text-dim)"}}>{m.status.toUpperCase()}</span></div>
-                  {m.notes && <div className="timeline-notes">{m.notes}</div>}
+        {project.milestones.map(function(m) {
+          return (
+            <div key={m.id} className="timeline-item">
+              <div className={"timeline-dot " + m.status} onClick={() => cycle(m.id)} title="Tap to cycle status" />
+              <div className="timeline-content">
+                <div style={{display:"flex", justifyContent:"space-between", alignItems:"flex-start"}}>
+                  <div>
+                    <div className="timeline-name">{m.name}</div>
+                    <div className="timeline-date">{fmt(m.date)} &middot; <span style={{color:statusColor[m.status]}}>{m.status.toUpperCase()}</span></div>
+                    {m.notes ? <div className="timeline-notes">{m.notes}</div> : null}
+                  </div>
+                  <button className="btn btn-ghost btn-sm" style={{color:"var(--red)",borderColor:"transparent"}} onClick={() => remove(m.id)}>x</button>
                 </div>
-                <button className="btn btn-ghost btn-sm" style={{color:"var(--red)", borderColor:"transparent"}} onClick={() => remove(m.id)}>×</button>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
       {adding ? (
         <div className="add-form">
-          <div style={{fontFamily:"'Bebas Neue',cursive", letterSpacing:2, marginBottom:12, color:"var(--amber)"}}>ADD MILESTONE</div>
+          <div style={{fontFamily:"'Bebas Neue',cursive",letterSpacing:2,marginBottom:12,color:"var(--amber)"}}>ADD MILESTONE</div>
           <div className="input-row">
-            <input placeholder="Milestone name" value={form.name} onChange={e => setForm({...form,name:e.target.value})} />
-            <input type="date" value={form.date} onChange={e => setForm({...form,date:e.target.value})} />
+            <input placeholder="Milestone name" value={form.name} onChange={e => setForm(Object.assign({},form,{name:e.target.value}))} />
+            <input type="date" value={form.date} onChange={e => setForm(Object.assign({},form,{date:e.target.value}))} />
           </div>
-          <input placeholder="Notes (optional)" value={form.notes} onChange={e => setForm({...form,notes:e.target.value})} style={{marginBottom:12,width:"100%"}} />
-          <div style={{display:"flex",gap:10}}>
+          <input placeholder="Notes (optional)" value={form.notes} onChange={e => setForm(Object.assign({},form,{notes:e.target.value}))} style={{marginBottom:10,width:"100%"}} />
+          <div style={{display:"flex",gap:8}}>
             <button className="btn btn-amber btn-sm" onClick={add}>Add</button>
             <button className="btn btn-ghost btn-sm" onClick={() => setAdding(false)}>Cancel</button>
           </div>
         </div>
-      ) : <button className="btn btn-ghost btn-sm" style={{marginTop:16}} onClick={() => setAdding(true)}>+ Add Milestone</button>}
+      ) : (
+        <button className="btn btn-ghost btn-sm" style={{marginTop:14}} onClick={() => setAdding(true)}>+ Add Milestone</button>
+      )}
     </div>
   );
 }
 
-// ── PO TAB ────────────────────────────────────────────────────────────────────
 function POTab({ project, onUpdate }) {
   const [form, setForm] = useState({ po:"", vendor:"", desc:"", amount:"", date:"", status:"Pending" });
   const [adding, setAdding] = useState(false);
   const add = () => {
     if (!form.po || !form.vendor) return;
-    onUpdate({ pos: [...project.pos, { ...form, id:"po"+Date.now(), amount: Number(form.amount) }] });
-    setForm({ po:"", vendor:"", desc:"", amount:"", date:"", status:"Pending" }); setAdding(false);
+    onUpdate({ pos: project.pos.concat([Object.assign({},form,{id:"po"+Date.now(),amount:Number(form.amount)})]) });
+    setForm({ po:"", vendor:"", desc:"", amount:"", date:"", status:"Pending" });
+    setAdding(false);
   };
   const remove = (id) => onUpdate({ pos: project.pos.filter(p => p.id!==id) });
-  const statusColor = { Pending:"var(--yellow)", Approved:"var(--steel)", Received:"var(--green)" };
-  const total = project.pos.reduce((s,p) => s+(Number(p.amount)||0), 0);
+  var statusColor = { Pending:"var(--yellow)", Approved:"var(--steel)", Received:"var(--green)" };
+  var total = project.pos.reduce(function(s,p) { return s+(Number(p.amount)||0); }, 0);
   return (
     <div>
-      <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
         <div className="section-title" style={{margin:0}}>Purchase Orders</div>
-        <div style={{fontFamily:"'IBM Plex Mono',monospace", fontSize:13, color:"var(--green)"}}>Total: {fmtMoney(total)}</div>
+        <div style={{fontFamily:"'IBM Plex Mono',monospace",fontSize:13,color:"var(--green)"}}>Total: {fmtMoney(total)}</div>
       </div>
       {project.pos.length === 0 && <div className="empty">No purchase orders yet.</div>}
       {project.pos.length > 0 && (
-        <div className="table-wrapper" style={{background:"var(--bg2)", border:"1px solid var(--border)", borderRadius:5, marginBottom:16}}>
+        <div className="table-wrapper" style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:5,marginBottom:14}}>
           <table>
             <thead><tr><th>P.O. #</th><th>Vendor</th><th>Description</th><th>Amount</th><th>Date</th><th>Status</th><th></th></tr></thead>
             <tbody>
-              {project.pos.map(p => (
-                <tr key={p.id}>
-                  <td style={{fontFamily:"'IBM Plex Mono',monospace", color:"var(--amber)"}}>{p.po}</td>
-                  <td>{p.vendor}</td>
-                  <td style={{color:"var(--text-dim)"}}>{p.desc}</td>
-                  <td className="contract-value">{fmtMoney(p.amount)}</td>
-                  <td style={{fontFamily:"'IBM Plex Mono',monospace", fontSize:12}}>{fmt(p.date)}</td>
-                  <td><span style={{color:statusColor[p.status], fontSize:11, fontFamily:"'IBM Plex Mono',monospace", fontWeight:700}}>{p.status}</span></td>
-                  <td><button className="btn btn-ghost btn-sm" style={{color:"var(--red)", borderColor:"transparent"}} onClick={() => remove(p.id)}>×</button></td>
-                </tr>
-              ))}
+              {project.pos.map(function(p) {
+                return (
+                  <tr key={p.id}>
+                    <td style={{fontFamily:"'IBM Plex Mono',monospace",color:"var(--amber)"}}>{p.po}</td>
+                    <td>{p.vendor}</td>
+                    <td style={{color:"var(--text-dim)"}}>{p.desc}</td>
+                    <td className="contract-value">{fmtMoney(p.amount)}</td>
+                    <td style={{fontFamily:"'IBM Plex Mono',monospace",fontSize:11}}>{fmt(p.date)}</td>
+                    <td><span style={{color:statusColor[p.status],fontSize:11,fontFamily:"'IBM Plex Mono',monospace",fontWeight:700}}>{p.status}</span></td>
+                    <td><button className="btn btn-ghost btn-sm" style={{color:"var(--red)",borderColor:"transparent"}} onClick={() => remove(p.id)}>x</button></td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
       )}
       {adding ? (
         <div className="add-form">
-          <div style={{fontFamily:"'Bebas Neue',cursive", letterSpacing:2, marginBottom:12, color:"var(--amber)"}}>ADD PURCHASE ORDER</div>
+          <div style={{fontFamily:"'Bebas Neue',cursive",letterSpacing:2,marginBottom:12,color:"var(--amber)"}}>ADD PURCHASE ORDER</div>
           <div className="input-row">
-            <input placeholder="P.O. Number" value={form.po} onChange={e => setForm({...form,po:e.target.value})} />
-            <input placeholder="Vendor" value={form.vendor} onChange={e => setForm({...form,vendor:e.target.value})} />
+            <input placeholder="P.O. Number" value={form.po} onChange={e => setForm(Object.assign({},form,{po:e.target.value}))} />
+            <input placeholder="Vendor" value={form.vendor} onChange={e => setForm(Object.assign({},form,{vendor:e.target.value}))} />
           </div>
           <div className="input-row">
-            <input placeholder="Description" value={form.desc} onChange={e => setForm({...form,desc:e.target.value})} />
-            <input placeholder="Amount" type="number" value={form.amount} onChange={e => setForm({...form,amount:e.target.value})} />
+            <input placeholder="Description" value={form.desc} onChange={e => setForm(Object.assign({},form,{desc:e.target.value}))} />
+            <input placeholder="Amount" type="number" value={form.amount} onChange={e => setForm(Object.assign({},form,{amount:e.target.value}))} />
           </div>
           <div className="input-row">
-            <input type="date" value={form.date} onChange={e => setForm({...form,date:e.target.value})} />
-            <select value={form.status} onChange={e => setForm({...form,status:e.target.value})}>
+            <input type="date" value={form.date} onChange={e => setForm(Object.assign({},form,{date:e.target.value}))} />
+            <select value={form.status} onChange={e => setForm(Object.assign({},form,{status:e.target.value}))}>
               <option>Pending</option><option>Approved</option><option>Received</option>
             </select>
           </div>
-          <div style={{display:"flex",gap:10}}>
+          <div style={{display:"flex",gap:8}}>
             <button className="btn btn-amber btn-sm" onClick={add}>Add P.O.</button>
             <button className="btn btn-ghost btn-sm" onClick={() => setAdding(false)}>Cancel</button>
           </div>
         </div>
-      ) : <button className="btn btn-ghost btn-sm" onClick={() => setAdding(true)}>+ Add Purchase Order</button>}
+      ) : (
+        <button className="btn btn-ghost btn-sm" onClick={() => setAdding(true)}>+ Add Purchase Order</button>
+      )}
     </div>
   );
 }
 
-// ── NOTES TAB ─────────────────────────────────────────────────────────────────
 function NotesTab({ project, onUpdate }) {
   const [text, setText] = useState("");
   const [tag, setTag] = useState("internal");
   const [author, setAuthor] = useState("");
   const add = () => {
     if (!text.trim()) return;
-    const now = new Date();
-    const dateStr = now.toISOString().slice(0,10) + " " + now.toTimeString().slice(0,5);
-    const label = author.trim() ? `[${author.trim()}] ${text}` : text;
-    onUpdate({ notes: [{ id:"n"+Date.now(), tag, text:label, date:dateStr }, ...project.notes] });
+    var now = new Date();
+    var dateStr = now.toISOString().slice(0,10) + " " + now.toTimeString().slice(0,5);
+    var label = author.trim() ? "[" + author.trim() + "] " + text : text;
+    onUpdate({ notes: [{ id:"n"+Date.now(), tag:tag, text:label, date:dateStr }].concat(project.notes) });
     setText("");
   };
   const remove = (id) => onUpdate({ notes: project.notes.filter(n => n.id!==id) });
+  var tagLabels = { client:"Client Call", site:"Site Visit", vendor:"Vendor", internal:"Internal" };
   return (
     <div>
       <div className="section-title">Notes & Discussions</div>
-      <div style={{background:"var(--bg2)", border:"1px solid var(--border)", borderRadius:5, padding:16, marginBottom:20}}>
+      <div style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:5,padding:14,marginBottom:16}}>
         <div className="input-row">
-          <input placeholder="Your name (optional)" value={author} onChange={e => setAuthor(e.target.value)} style={{flex:"0 0 180px"}} />
-          <select value={tag} onChange={e => setTag(e.target.value)} style={{flex:"0 0 150px"}}>
+          <input placeholder="Your name (optional)" value={author} onChange={e => setAuthor(e.target.value)} style={{flex:"0 0 160px"}} />
+          <select value={tag} onChange={e => setTag(e.target.value)}>
             <option value="internal">Internal</option>
             <option value="client">Client Call</option>
             <option value="site">Site Visit</option>
@@ -664,135 +737,174 @@ function NotesTab({ project, onUpdate }) {
         <button className="btn btn-amber btn-sm" onClick={add}>Add Note</button>
       </div>
       {project.notes.length === 0 && <div className="empty">No notes yet.</div>}
-      {project.notes.map(n => (
-        <div key={n.id} className="note-item">
-          <div className="note-header">
-            <span className={`note-tag tag-${n.tag}`}>{n.tag==="client"?"Client Call":n.tag==="site"?"Site Visit":n.tag==="vendor"?"Vendor":"Internal"}</span>
-            <div style={{display:"flex", alignItems:"center", gap:10}}>
-              <span className="note-time">{n.date}</span>
-              <button className="btn btn-ghost btn-sm" style={{color:"var(--red)", borderColor:"transparent"}} onClick={() => remove(n.id)}>×</button>
+      {project.notes.map(function(n) {
+        return (
+          <div key={n.id} className="note-item">
+            <div className="note-header">
+              <span className={"note-tag tag-" + n.tag}>{tagLabels[n.tag]}</span>
+              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                <span className="note-time">{n.date}</span>
+                <button className="btn btn-ghost btn-sm" style={{color:"var(--red)",borderColor:"transparent"}} onClick={() => remove(n.id)}>x</button>
+              </div>
             </div>
+            <div className="note-text">{n.text}</div>
           </div>
-          <div className="note-text">{n.text}</div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
 
-// ── CHECKLIST TAB ─────────────────────────────────────────────────────────────
 function ChecklistTab({ project, onUpdate }) {
   const [form, setForm] = useState({ text:"", due:"", priority:"medium" });
   const [adding, setAdding] = useState(false);
-  const toggle = (id) => onUpdate({ checklist: project.checklist.map(c => c.id===id ? {...c,done:!c.done} : c) });
+  const toggle = (id) => onUpdate({ checklist: project.checklist.map(c => c.id===id ? Object.assign({},c,{done:!c.done}) : c) });
   const remove = (id) => onUpdate({ checklist: project.checklist.filter(c => c.id!==id) });
   const add = () => {
     if (!form.text.trim()) return;
-    onUpdate({ checklist: [...project.checklist, { id:"c"+Date.now(), text:form.text, due:form.due, priority:form.priority, done:false }] });
-    setForm({ text:"", due:"", priority:"medium" }); setAdding(false);
+    onUpdate({ checklist: project.checklist.concat([{ id:"c"+Date.now(), text:form.text, due:form.due, priority:form.priority, done:false }]) });
+    setForm({ text:"", due:"", priority:"medium" });
+    setAdding(false);
   };
-  const open = project.checklist.filter(c => !c.done);
-  const done = project.checklist.filter(c => c.done);
-  const Item = ({ c }) => (
-    <div className={`check-item ${c.done?"done":""}`}>
-      <div className={`custom-check ${c.done?"checked":""}`} onClick={() => toggle(c.id)}>
-        {c.done && <span style={{fontSize:10,color:"#000",fontWeight:900}}>✓</span>}
-      </div>
-      <div style={{flex:1}}>
-        <div className="check-text">{c.text}</div>
-        <div className="check-meta">
-          <span className={`priority-badge priority-${c.priority}`}>{c.priority}</span>
-          {c.due && <span style={{fontSize:11,color:"var(--text-dim)",fontFamily:"'IBM Plex Mono',monospace"}}>Due {fmt(c.due)}</span>}
+  var open = project.checklist.filter(c => !c.done);
+  var done = project.checklist.filter(c => c.done);
+
+  function Item(props) {
+    var c = props.c;
+    return (
+      <div className={"check-item" + (c.done ? " done" : "")}>
+        <div className={"custom-check" + (c.done ? " checked" : "")} onClick={() => toggle(c.id)}>
+          {c.done ? <span style={{fontSize:10,color:"#000",fontWeight:900}}>&#10003;</span> : null}
         </div>
+        <div style={{flex:1}}>
+          <div className="check-text">{c.text}</div>
+          <div className="check-meta">
+            <span className={"priority-badge priority-" + c.priority}>{c.priority}</span>
+            {c.due ? <span style={{fontSize:11,color:"var(--text-dim)",fontFamily:"'IBM Plex Mono',monospace"}}>Due {fmt(c.due)}</span> : null}
+          </div>
+        </div>
+        <button className="btn btn-ghost btn-sm" style={{color:"var(--red)",borderColor:"transparent"}} onClick={() => remove(c.id)}>x</button>
       </div>
-      <button className="btn btn-ghost btn-sm" style={{color:"var(--red)",borderColor:"transparent"}} onClick={() => remove(c.id)}>×</button>
-    </div>
-  );
+    );
+  }
+
   return (
     <div>
-      <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
         <div className="section-title" style={{margin:0}}>Checklist</div>
-        <span style={{fontSize:12,fontFamily:"'IBM Plex Mono',monospace",color:"var(--text-dim)"}}>{done.length}/{project.checklist.length} complete</span>
+        <span style={{fontSize:11,fontFamily:"'IBM Plex Mono',monospace",color:"var(--text-dim)"}}>{done.length}/{project.checklist.length} complete</span>
       </div>
-      {open.length > 0 && <><div style={{fontSize:11,letterSpacing:2,color:"var(--text-dim)",marginBottom:10,fontFamily:"'IBM Plex Mono',monospace"}}>OPEN</div>{open.map(c => <Item key={c.id} c={c} />)}</>}
-      {done.length > 0 && <><div style={{fontSize:11,letterSpacing:2,color:"var(--text-dim)",margin:"20px 0 10px",fontFamily:"'IBM Plex Mono',monospace"}}>COMPLETED</div>{done.map(c => <Item key={c.id} c={c} />)}</>}
+      {open.length > 0 && (
+        <>
+          <div style={{fontSize:10,letterSpacing:2,color:"var(--text-dim)",marginBottom:8,fontFamily:"'IBM Plex Mono',monospace"}}>OPEN</div>
+          {open.map(c => <Item key={c.id} c={c} />)}
+        </>
+      )}
+      {done.length > 0 && (
+        <>
+          <div style={{fontSize:10,letterSpacing:2,color:"var(--text-dim)",margin:"16px 0 8px",fontFamily:"'IBM Plex Mono',monospace"}}>COMPLETED</div>
+          {done.map(c => <Item key={c.id} c={c} />)}
+        </>
+      )}
       {project.checklist.length === 0 && <div className="empty">No tasks yet.</div>}
       {adding ? (
-        <div className="add-form" style={{marginTop:16}}>
-          <div style={{fontFamily:"'Bebas Neue',cursive", letterSpacing:2, marginBottom:12, color:"var(--amber)"}}>ADD TASK</div>
-          <input placeholder="Task description" value={form.text} onChange={e => setForm({...form,text:e.target.value})} style={{marginBottom:10,width:"100%"}} />
+        <div className="add-form" style={{marginTop:14}}>
+          <div style={{fontFamily:"'Bebas Neue',cursive",letterSpacing:2,marginBottom:12,color:"var(--amber)"}}>ADD TASK</div>
+          <input placeholder="Task description" value={form.text} onChange={e => setForm(Object.assign({},form,{text:e.target.value}))} style={{marginBottom:10,width:"100%"}} />
           <div className="input-row">
-            <input type="date" value={form.due} onChange={e => setForm({...form,due:e.target.value})} />
-            <select value={form.priority} onChange={e => setForm({...form,priority:e.target.value})}>
-              <option value="high">High Priority</option><option value="medium">Medium Priority</option><option value="low">Low Priority</option>
+            <input type="date" value={form.due} onChange={e => setForm(Object.assign({},form,{due:e.target.value}))} />
+            <select value={form.priority} onChange={e => setForm(Object.assign({},form,{priority:e.target.value}))}>
+              <option value="high">High Priority</option>
+              <option value="medium">Medium Priority</option>
+              <option value="low">Low Priority</option>
             </select>
           </div>
-          <div style={{display:"flex",gap:10}}>
+          <div style={{display:"flex",gap:8}}>
             <button className="btn btn-amber btn-sm" onClick={add}>Add Task</button>
             <button className="btn btn-ghost btn-sm" onClick={() => setAdding(false)}>Cancel</button>
           </div>
         </div>
-      ) : <button className="btn btn-ghost btn-sm" style={{marginTop:16}} onClick={() => setAdding(true)}>+ Add Task</button>}
+      ) : (
+        <button className="btn btn-ghost btn-sm" style={{marginTop:14}} onClick={() => setAdding(true)}>+ Add Task</button>
+      )}
     </div>
   );
 }
 
-// ── CALENDAR ──────────────────────────────────────────────────────────────────
-function CalendarView({ projects, onOpen }) {
+function CalendarView({ projects, onOpen, setSidebarOpen }) {
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
   const prev = () => { if (month===0){setMonth(11);setYear(y=>y-1);}else setMonth(m=>m-1); };
   const next = () => { if (month===11){setMonth(0);setYear(y=>y+1);}else setMonth(m=>m+1); };
   const allEvents = useMemo(() => {
-    const evs = [];
-    projects.forEach((p,pi) => p.milestones.forEach(m => evs.push({ date:m.date, label:m.name, projectId:p.id, color:PROJECT_COLORS[pi%PROJECT_COLORS.length] })));
+    var evs = [];
+    projects.forEach(function(p,pi) {
+      p.milestones.forEach(function(m) {
+        evs.push({ date:m.date, label:m.name, projectId:p.id, color:PROJECT_COLORS[pi%PROJECT_COLORS.length] });
+      });
+    });
     return evs;
   }, [projects]);
-  const firstDay = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month+1, 0).getDate();
-  const daysInPrev = new Date(year, month, 0).getDate();
-  const cells = [];
-  for (let i = firstDay-1; i >= 0; i--) cells.push({ day:daysInPrev-i, current:false });
-  for (let i = 1; i <= daysInMonth; i++) cells.push({ day:i, current:true });
+  var firstDay = new Date(year, month, 1).getDay();
+  var daysInMonth = new Date(year, month+1, 0).getDate();
+  var daysInPrev = new Date(year, month, 0).getDate();
+  var cells = [];
+  for (var i = firstDay-1; i >= 0; i--) cells.push({ day:daysInPrev-i, current:false });
+  for (var j = 1; j <= daysInMonth; j++) cells.push({ day:j, current:true });
   while (cells.length%7!==0) cells.push({ day:cells.length-daysInMonth-firstDay+1, current:false });
+
   const eventsOn = (day, curr) => {
     if (!curr) return [];
-    const ds = `${year}-${String(month+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+    var mm = String(month+1).padStart(2,"0");
+    var dd = String(day).padStart(2,"0");
+    var ds = year + "-" + mm + "-" + dd;
     return allEvents.filter(e => e.date===ds);
   };
+
   return (
     <>
       <div className="topbar">
-      <button onClick={() => setSidebarOpen(o => !o)} className="btn btn-ghost btn-sm" style={{display: window.innerWidth < 768 ? "block" : "none", marginRight:12}}>☰</button>
-      <div className="topbar-title">PROJECT <span>CALENDAR</span></div></div>
+        <div className="topbar-left">
+          <HamburgerBtn setSidebarOpen={setSidebarOpen} />
+          <div className="topbar-title">PROJECT <span>CALENDAR</span></div>
+        </div>
+      </div>
       <div className="content">
         <div className="cal-nav">
-          <button className="btn btn-ghost btn-sm" onClick={prev}>‹</button>
+          <button className="btn btn-ghost btn-sm" onClick={prev}>&#8249;</button>
           <div className="cal-month">{MONTHS[month]} {year}</div>
-          <button className="btn btn-ghost btn-sm" onClick={next}>›</button>
+          <button className="btn btn-ghost btn-sm" onClick={next}>&#8250;</button>
         </div>
-        <div style={{display:"flex", gap:16, flexWrap:"wrap", marginBottom:16}}>
-          {projects.map((p,i) => (
-            <div key={p.id} style={{display:"flex",alignItems:"center",gap:6,cursor:"pointer"}} onClick={() => onOpen(p.id)}>
-              <div style={{width:10,height:10,borderRadius:2,background:PROJECT_COLORS[i%PROJECT_COLORS.length]}} />
-              <span style={{fontSize:11,color:"var(--text-mid)",fontFamily:"'IBM Plex Mono',monospace"}}>{p.name}</span>
-            </div>
-          ))}
+        <div style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:14}}>
+          {projects.map(function(p,i) {
+            return (
+              <div key={p.id} style={{display:"flex",alignItems:"center",gap:5,cursor:"pointer"}} onClick={() => onOpen(p.id)}>
+                <div style={{width:9,height:9,borderRadius:2,background:PROJECT_COLORS[i%PROJECT_COLORS.length]}} />
+                <span style={{fontSize:10,color:"var(--text-mid)",fontFamily:"'IBM Plex Mono',monospace"}}>{p.name}</span>
+              </div>
+            );
+          })}
         </div>
         <div className="calendar-grid">
           {DAYS.map(d => <div key={d} className="cal-header">{d}</div>)}
-          {cells.map((cell,idx) => {
-            const evs = eventsOn(cell.day, cell.current);
-            const isToday = cell.current && cell.day===today.getDate() && month===today.getMonth() && year===today.getFullYear();
+          {cells.map(function(cell,idx) {
+            var evs = eventsOn(cell.day, cell.current);
+            var isToday = cell.current && cell.day===today.getDate() && month===today.getMonth() && year===today.getFullYear();
+            var cls = "cal-day" + (!cell.current ? " other-month" : "") + (isToday ? " today" : "");
             return (
-              <div key={idx} className={`cal-day ${!cell.current?"other-month":""} ${isToday?"today":""}`}>
+              <div key={idx} className={cls}>
                 <div className="cal-day-num">{cell.day}</div>
-                {evs.map((e,ei) => (
-                  <div key={ei} className="cal-event" title={e.label}
-                    style={{background:e.color+"22",color:e.color,border:`1px solid ${e.color}44`}}
-                    onClick={() => onOpen(e.projectId)}>{e.label}</div>
-                ))}
+                {evs.map(function(e,ei) {
+                  return (
+                    <div key={ei} className="cal-event"
+                      title={e.label}
+                      style={{background:e.color+"22",color:e.color,border:"1px solid "+e.color+"44"}}
+                      onClick={() => onOpen(e.projectId)}>
+                      {e.label}
+                    </div>
+                  );
+                })}
               </div>
             );
           })}
@@ -802,16 +914,21 @@ function CalendarView({ projects, onOpen }) {
   );
 }
 
-// ── PROJECT MODAL ─────────────────────────────────────────────────────────────
 function ProjectModal({ project, onSave, onClose }) {
   const [form, setForm] = useState({
-    name:project?.name||"", client:project?.client||"", address:project?.address||"",
-    pm:project?.pm||"", contract:project?.contract||"", status:project?.status||"planning",
-    start:project?.start||"", end:project?.end||"", progress:project?.progress||0,
+    name: project ? project.name : "",
+    client: project ? project.client : "",
+    address: project ? project.address : "",
+    pm: project ? project.pm : "",
+    contract: project ? project.contract : "",
+    status: project ? project.status : "planning",
+    start: project ? project.start : "",
+    end: project ? project.end : "",
+    progress: project ? project.progress : 0,
   });
-  const set = (k,v) => setForm(f => ({...f,[k]:v}));
+  const set = (k,v) => setForm(function(f) { return Object.assign({},f,{[k]:v}); });
   return (
-    <div className="modal-overlay" onClick={e => e.target===e.currentTarget && onClose()}>
+    <div className="modal-overlay" onClick={function(e) { if(e.target===e.currentTarget) onClose(); }}>
       <div className="modal">
         <div className="modal-title">{project ? "Edit Project" : "New Project"}</div>
         <div className="form-grid">
@@ -822,13 +939,15 @@ function ProjectModal({ project, onSave, onClose }) {
           <div className="form-group"><label>Contract Value ($)</label><input type="number" value={form.contract} onChange={e=>set("contract",e.target.value)} /></div>
           <div className="form-group"><label>Status</label>
             <select value={form.status} onChange={e=>set("status",e.target.value)}>
-              <option value="planning">Planning</option><option value="active">In Progress</option>
-              <option value="hold">On Hold</option><option value="complete">Complete</option>
+              <option value="planning">Planning</option>
+              <option value="active">In Progress</option>
+              <option value="hold">On Hold</option>
+              <option value="complete">Complete</option>
             </select>
           </div>
           <div className="form-group"><label>Start Date</label><input type="date" value={form.start} onChange={e=>set("start",e.target.value)} /></div>
           <div className="form-group"><label>End Date</label><input type="date" value={form.end} onChange={e=>set("end",e.target.value)} /></div>
-          <div className="form-group full"><label>Progress — {form.progress}%</label><input type="range" min="0" max="100" value={form.progress} onChange={e=>set("progress",Number(e.target.value))} style={{background:"transparent",border:"none",padding:0}} /></div>
+          <div className="form-group full"><label>Progress - {form.progress}%</label><input type="range" min="0" max="100" value={form.progress} onChange={e=>set("progress",Number(e.target.value))} style={{background:"transparent",border:"none",padding:0}} /></div>
         </div>
         <div className="form-actions">
           <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
