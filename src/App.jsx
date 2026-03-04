@@ -284,20 +284,19 @@ export default function App() {
 
   const selectedProject = projects ? projects.find(function(p) { return p.id === selectedId; }) : null;
 
-  const saveProject = async function(data) {
-    var next;
-    if (editingProject) {
-      next = projects.map(function(p) { return p.id === editingProject.id ? Object.assign({}, p, data) : p; });
-    } else {
-      var newP = Object.assign({}, data, { id: "p" + Date.now(), milestones: [], pos: [], notes: [], checklist: [], progress: data.progress || 0 });
-      next = projects.concat([newP]);
-    }
+  const saveProject = useCallback(async (data) => {
+  setProjects(prev => {
+    const next = editingProject
+      ? prev.map(p => p.id === editingProject.id ? { ...p, ...data } : p)
+      : [...prev, { ...data, id:"p"+Date.now(), milestones:[], pos:[], notes:[], checklist:[], progress: data.progress||0 }];
+    localVersion.current += 1;
+    persist(next).then(ok => setSyncStatus(ok ? "synced" : "error"));
     setSyncStatus("syncing");
-    const ok = await saveProjects(next);
-    setProjects(next);
-    setSyncStatus(ok ? "synced" : "error");
-    showToast(editingProject ? "Project updated" : "Project created");
-    setShowModal(false);
+    return next;
+  });
+  showToast(editingProject ? "Project updated" : "Project created");
+  setShowModal(false);
+}, [editingProject, showToast]);
   };
 
   const deleteProject = async function(id) {
