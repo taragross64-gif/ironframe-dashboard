@@ -354,7 +354,7 @@ export default function App() {
       <>
         <style>{styles}</style>
         <div className="loading-screen">
-          <div className="loading-title">IRONFRAME</div>
+          <div className="loading-title">HOLLYWOOD</div>
           <div className="spinner" />
           <div className="loading-sub">LOADING SHARED DATA...</div>
         </div>
@@ -387,7 +387,7 @@ function Sidebar({ view, setView, setSelectedId, syncStatus }) {
   const syncColor = { synced:"var(--green)", syncing:"var(--yellow)", error:"var(--red)" };
   return (
     <div className="sidebar">
-      <div className="sidebar-logo">IRONFRAME<span>CONSTRUCTION MGMT</span></div>
+      <div className="sidebar-logo">HOLLYWOOD<span>PROPERTY SOLUTIONS</span></div>
       <nav className="sidebar-nav">
         {[{id:"dashboard",icon:"⬛",label:"All Projects"},{id:"calendar",icon:"📅",label:"Calendar"}].map(n => (
           <div key={n.id} className={`nav-item ${view === n.id || (view==="detail" && n.id==="dashboard") ? "active" : ""}`}
